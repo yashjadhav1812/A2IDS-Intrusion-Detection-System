@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">Network Flow Analyzer</h2>
+    <p style="color: var(--text-secondary); margin-top: 4px;">Bidirectional 5-Tuple Aggregation & CICIDS Feature Extraction</p>
+  </div>
+  <div style="display:flex; gap:10px;">
+    <button class="btn btn-secondary btn-sm" onclick="fetchFlows()">Refresh Flows</button>
+  </div>
+</div>
+
+<!-- Flow Summary Row -->
+<div class="grid-4" style="margin-bottom: 1.5rem;">
+  <div class="stat-card">
+    <div class="stat-label">Active Flows</div>
+    <div class="stat-value" id="flow-active-count">0</div>
+    <div class="stat-sub">Tracked in memory</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Persisted Flows</div>
+    <div class="stat-value" id="flow-db-count">0</div>
+    <div class="stat-sub">Saved to SQLite</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Anomalous Flows</div>
+    <div class="stat-value" id="flow-anom-count" style="color: var(--accent-red);">0</div>
+    <div class="stat-sub">Traffic Anomaly flags</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">AI Flow Features</div>
+    <div class="stat-value" style="color: var(--accent-cyan);">17</div>
+    <div class="stat-sub">Per bidirectional flow</div>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="padding: 1rem;">
+  <div style="display:flex; gap:12px; align-items:center;">
+    <input type="text" id="flow-filter-ip" class="form-control" placeholder="Filter by IP..." style="max-width: 200px;">
+    <label style="display:flex; align-items:center; gap:8px; font-size:0.8rem; cursor:pointer;">
+      <input type="checkbox" id="flow-anom-only" onchange="fetchFlows()"> Only Anomalous Flows
+    </label>
+    <button class="btn btn-primary btn-sm" onclick="fetchFlows()">Apply Filter</button>
+  </div>
+</div>
+
+<!-- Flows Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-responsive">
+    <table class="ids-table">
+      <thead>
+        <tr>
+          <th>Flow Key</th>
+          <th>Initiator &rarr; Responder</th>
+          <th>Proto</th>
+          <th>Duration</th>
+          <th>Pkts (Fwd / Bwd)</th>
+          <th>Bytes (Fwd / Bwd)</th>
+          <th>Pkt Rate</th>
+          <th>TCP Flags</th>
+          <th>Anomaly Score</th>
+          <th>State</th>
+        </tr>
+      </thead>
+      <tbody id="flow-table-body">
+        <tr>
+          <td colspan="10" class="empty-state">
+            No flows recorded. Start packet capture to aggregate bidirectional flows.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function fetchFlows() {
+  try {
+    const anomOnlyEl = document.getElementById('flow-anom-only');
+    const anomOnly = anomOnlyEl ? anomOnlyEl.checked : false;
+    const res = await fetch(`/api/flows?only_anomalous=${anomOnly}&limit=100`);
+    const data = await res.json();
+
+    const activeEl = document.getElementById('flow-active-count');
+    if (activeEl) activeEl.textContent = data.active_flow_count || 0;
+    const dbEl = document.getElementById('flow-db-count');
+    if (dbEl) dbEl.textContent = data.db_flows ? data.db_flows.length : 0;
+
+    const tbody = document.getElementById('flow-table-body');
+    const flows = data.live_flows && data.live_flows.length > 0 ? data.live_flows : data.db_flows;
+
+    if (!flows || flows.length === 0) {
+      if (tbody) tbody.innerHTML = `<tr><td colspan="10" class="empty-state">No flows active or recorded yet.</td></tr>`;
+      return;
+    }
+
+    if (tbody) {
+      tbody.innerHTML = '';
+      flows.forEach(f => {
+        const tr = document.createElement('tr');
+        if (f.is_anomalous) tr.className = 'row-alert';
+
+        const flags = [];
+        if (f.syn_cnt) flags.push(`S:${f.syn_cnt}`);
+        if (f.ack_cnt) flags.push(`A:${f.ack_cnt}`);
+        if (f.fin_cnt) flags.push(`F:${f.fin_cnt}`);
+        if (f.rst_cnt) flags.push(`R:${f.rst_cnt}`);
+
+        tr.innerHTML = `
+          <td style="font-size:0.75rem; color:var(--text-muted);">${(f.flow_key || '').substring(0, 16)}...</td>
+          <td><code style="color:var(--accent-blue);">${f.src_ip}:${f.src_port}</code></td>
+          <td><code style="color:var(--text-primary);">${f.dst_ip}:${f.dst_port}</code></td>
+          <td><span class="badge badge-low">${f.protocol}</span></td>
+          <td style="font-family:var(--font-mono);">${f.fwd_pkts + f.bwd_pkts}</td>
+          <td style="font-family:var(--font-mono);">${(f.fwd_bytes + f.bwd_bytes).toLocaleString()} B</td>
+          <td style="font-family:var(--font-mono);">${((f.duration || 0)).toFixed(1)}s</td>
+          <td style="font-family:var(--font-mono); font-size:0.75rem;">${flags.join(' ') || '-'}</td>
+          <td>
+            <span class="badge ${f.is_anomalous ? 'badge-critical' : 'badge-success'}">
+              ${f.is_anomalous ? 'ANOMALY' : 'BENIGN'}
+            </span>
+          </td>
+          <td><span class="badge badge-low">${f.state}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+  } catch (e) {
+    console.error('Error fetching flows:', e);
+  }
+}
+      <td><strong>${f.initiator_ip}:${f.initiator_port || 0}</strong> &rarr; ${f.responder_ip}:${f.responder_port || 0}</td>
+      <td><span class="proto-badge proto-${(f.protocol || '').toLowerCase()}">${f.protocol}</span></td>
+      <td>${(f.duration || 0).toFixed(2)}s</td>
+      <td>${f.fwd_pkts || 0} / ${f.bwd_pkts || 0}</td>
+      <td>${f.fwd_bytes || 0} / ${f.bwd_bytes || 0}</td>
+      <td>${(f.pkt_rate || 0).toFixed(1)}/s</td>
+      <td>${flags.join(' ') || '-'}</td>
+      <td><span class="badge badge-${f.is_anomalous ? 'critical' : 'normal'}">${(f.anomaly_score || 0).toFixed(2)}</span></td>
+      <td><span class="badge badge-low">${f.state || 'ESTABLISHED'}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  fetchFlows();
+  setInterval(fetchFlows, 5000);
+});
+</script>
+{% endblock %}

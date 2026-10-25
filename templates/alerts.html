@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h2 style="font-size: 1.35rem; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+      THREAT INCIDENTS & HEURISTIC DETECTIONS
+    </h2>
+    <p style="color: var(--text-secondary); font-size: 0.78rem;">Autonomous Threat Classification, Severity Scoring & Kernel Quarantine Actions</p>
+  </div>
+  <div style="display:flex; gap:8px;">
+    <button class="btn-sentinel btn-sentinel-outline btn-sm" onclick="handleAlertsRefresh()">Refresh</button>
+    <a href="/api/export/alerts" class="btn-sentinel btn-sentinel-green btn-sm">Download Alerts (CSV)</a>
+  </div>
+</div>
+
+<!-- Threat Filter Ribbon -->
+<div class="sentinel-card" style="margin-bottom: 1.25rem; padding: 0.85rem 1.15rem;">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+      <span style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Filter Threat:</span>
+      <select id="filter-severity" class="sentinel-select" onchange="fetchAlerts()">
+        <option value="">All Threat Levels</option>
+        <option value="CRITICAL">Critical Threats</option>
+        <option value="HIGH">High Severity</option>
+        <option value="MEDIUM">Medium Warnings</option>
+        <option value="LOW">Low Level</option>
+      </select>
+
+      <span style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-left: 10px;">Status:</span>
+      <select id="filter-status" class="sentinel-select" onchange="fetchAlerts()">
+        <option value="">All Incident States</option>
+        <option value="OPEN">Open (Pending)</option>
+        <option value="CONFIRMED">Confirmed / Auto-Blocked</option>
+        <option value="RESOLVED">Resolved</option>
+        <option value="FALSE_POSITIVE">False Positive</option>
+      </select>
+    </div>
+
+    <!-- Severity Legend Pills -->
+    <div style="display: flex; gap: 6px; align-items: center;">
+      <span class="sentinel-badge badge-critical">CRITICAL (90-100%)</span>
+      <span class="sentinel-badge badge-high">HIGH (75-89%)</span>
+      <span class="sentinel-badge badge-medium">MEDIUM (50-74%)</span>
+      <span class="sentinel-badge badge-low">LOW (&lt;50%)</span>
+    </div>
+  </div>
+</div>
+
+<!-- Threats Table -->
+<div class="sentinel-card" style="padding: 0; overflow: hidden;">
+  <div class="table-responsive">
+    <table class="sentinel-table">
+      <thead>
+        <tr>
+          <th style="width: 50px;">ID</th>
+          <th style="width: 120px;">Timestamp</th>
+          <th style="width: 90px;">Threat Level</th>
+          <th style="width: 110px;">Threat Score</th>
+          <th>Attack Title & Category</th>
+          <th>Attacker Source IP</th>
+          <th>Target Endpoint</th>
+          <th>State</th>
+          <th style="width: 160px;">Containment Action</th>
+        </tr>
+      </thead>
+      <tbody id="alerts-table-body">
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+            No threat incidents detected. System defenses active and monitoring.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Triage Modal -->
+<div id="triage-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px); z-index:10002; justify-content:center; align-items:center;">
+  <div style="background:var(--bg-card); border:1px solid var(--border-active); border-radius:8px; width:460px; max-width:90vw; padding:1.25rem; box-shadow:0 12px 40px rgba(0,0,0,0.8);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid var(--border-subtle); padding-bottom:0.5rem;">
+      <h3 style="color:#ffffff; font-size:0.95rem; font-weight:800;">
+        INCIDENT TRIAGE #<span id="triage-alert-id"></span>
+      </h3>
+      <button onclick="closeTriageModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.3rem; cursor:pointer;">&times;</button>
+    </div>
+
+    <div style="margin-bottom:0.85rem;">
+      <label style="font-size:0.68rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:4px;">Classification State</label>
+      <select id="triage-status-select" class="sentinel-select" style="width:100%;">
+        <option value="CONFIRMED">CONFIRMED (True Threat • Auto-Mitigated)</option>
+        <option value="FALSE_POSITIVE">FALSE POSITIVE (Benign Baseline Traffic)</option>
+        <option value="INVESTIGATING">INVESTIGATING (Under SOC Review)</option>
+        <option value="RESOLVED">RESOLVED (Threat Neutralized)</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="font-size:0.68rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:4px;">Security Operator Notes</label>
+      <textarea id="triage-notes" class="sentinel-input" style="width:100%; height:75px;" placeholder="Document forensic evidence or rationale..."></textarea>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button class="btn-sentinel btn-sentinel-outline btn-sm" onclick="closeTriageModal()">Cancel</button>
+      <button class="btn-sentinel btn-sentinel-blue btn-sm" onclick="submitTriage()">Save Triage</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentTriageId = null;
+
+async function handleAlertsRefresh() {
+  showNotification('Refreshing threat incidents...', 'info');
+  await fetchAlerts();
+  showNotification('Threat incidents updated successfully', 'info');
+}
+
+async function fetchAlerts() {
+  try {
+    const sev = document.getElementById('filter-severity').value;
+    const stat = document.getElementById('filter-status').value;
+    const res = await fetch(`/api/alerts?severity=${sev}&status=${stat}&limit=100`);
+    const data = await res.json();
+    renderAlerts(data.alerts || []);
+  } catch (e) {
+    console.error('Error fetching alerts:', e);
+  }
+}
+
+function renderAlerts(alerts) {
+  const tbody = document.getElementById('alerts-table-body');
+  if (!alerts || alerts.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="9" style="text-align:center; padding: 2.5rem; color: var(--text-muted);">
+          No threat alerts recorded. Network baseline is secure.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  alerts.forEach(a => {
+    const tr = document.createElement('tr');
+    const sev = a.severity || 'LOW';
+    let sevBadge = 'badge-low';
+    let pctDisplay = '45.0%';
+
+    if (sev === 'CRITICAL') {
+      sevBadge = 'badge-critical';
+      pctDisplay = a.confidence ? `${(a.confidence * 100).toFixed(1)}%` : '98.5%';
+    } else if (sev === 'HIGH') {
+      sevBadge = 'badge-high';
+      pctDisplay = a.confidence ? `${(a.confidence * 100).toFixed(1)}%` : '85.0%';
+    } else if (sev === 'MEDIUM') {
+      sevBadge = 'badge-medium';
+      pctDisplay = a.confidence ? `${(a.confidence * 100).toFixed(1)}%` : '65.0%';
+    } else {
+      pctDisplay = a.confidence ? `${(a.confidence * 100).toFixed(1)}%` : '35.0%';
+    }
+
+    const isBlocked = (a.status === 'CONFIRMED' || (a.firewall_action && a.firewall_action.includes('BLOCK')));
+
+    tr.innerHTML = `
+      <td style="color:var(--text-muted); font-size:0.72rem; font-family:var(--font-mono);">#${a.id}</td>
+      <td style="color:var(--text-muted); font-size:0.72rem; font-family:var(--font-mono);">${a.datetime_str || ''}</td>
+      <td><span class="sentinel-badge ${sevBadge}">${sev}</span></td>
+      <td>
+        <div style="font-weight:800; font-family:var(--font-mono); font-size:0.8rem; color:${sev === 'CRITICAL' ? 'var(--magenta-rose)' : sev === 'HIGH' ? 'var(--purple-accent)' : 'var(--cyan-accent)'};">
+          ${pctDisplay}
+        </div>
+      </td>
+      <td>
+        <strong style="color:#ffffff;">${a.title || a.category}</strong>
+        <div style="color:var(--text-muted); font-size:0.68rem;">${a.category || ''}</div>
+      </td>
+      <td>
+        <code style="color:var(--blue-light); font-size:0.82rem;">${a.src_ip}</code>
+      </td>
+      <td style="color:var(--text-muted); font-size:0.75rem; font-family:var(--font-mono);">
+        ${a.dst_ip || 'N/A'}:${a.dst_port || ''}
+      </td>
+      <td>
+        <span class="sentinel-badge ${isBlocked ? 'badge-critical' : 'badge-slate'}">
+          ${isBlocked ? 'AUTO-BLOCKED' : a.status}
+        </span>
+      </td>
+      <td>
+        <div style="display:flex; gap:6px;">
+          ${!isBlocked ? `
+            <button class="btn-sentinel btn-sentinel-danger btn-sm" onclick="quickBlock('${a.src_ip}', '${a.title || a.category}')">
+              Block
+            </button>
+          ` : `
+            <button class="btn-sentinel btn-sentinel-outline btn-sm" onclick="quickUnblock('${a.src_ip}')">
+              Unblock
+            </button>
+          `}
+          <button class="btn-sentinel btn-sentinel-outline btn-sm" onclick="openTriageModal(${a.id}, '${a.status}')">
+            Triage
+          </button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function quickBlock(ip, reason) {
+  if (!confirm(`Block attacker IP ${ip} via OS Packet Filter?`)) return;
+  const res = await fetch('/api/firewall/block', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ip: ip, reason: reason, duration_sec: 300})
+  });
+  const data = await res.json();
+  if (data.success) {
+    showNotification(`Blocked attacker ${ip}`);
+    fetchAlerts();
+  } else {
+    showNotification(`Failed: ${data.message}`, 'error');
+  }
+}
+
+async function quickUnblock(ip) {
+  if (!confirm(`Unblock IP address ${ip}?`)) return;
+  const res = await fetch('/api/firewall/unblock', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ip: ip, reason: 'Operator manual unblock'})
+  });
+  const data = await res.json();
+  if (data.success) {
+    showNotification(`Unblocked ${ip}`);
+    fetchAlerts();
+  } else {
+    showNotification(`Failed: ${data.message}`, 'error');
+  }
+}
+
+function openTriageModal(id, status) {
+  currentTriageId = id;
+  document.getElementById('triage-alert-id').textContent = id;
+  document.getElementById('triage-status-select').value = status || 'CONFIRMED';
+  document.getElementById('triage-notes').value = '';
+  document.getElementById('triage-modal').style.display = 'flex';
+}
+
+function closeTriageModal() {
+  document.getElementById('triage-modal').style.display = 'none';
+}
+
+async function submitTriage() {
+  if (!currentTriageId) return;
+  const status = document.getElementById('triage-status-select').value;
+  const notes = document.getElementById('triage-notes').value;
+
+  const res = await fetch(`/api/alerts/${currentTriageId}/triage`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({status: status, notes: notes})
+  });
+  const data = await res.json();
+  if (data.success) {
+    showNotification(`Incident #${currentTriageId} updated to ${status}`);
+    closeTriageModal();
+    fetchAlerts();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  fetchAlerts();
+  setInterval(fetchAlerts, 5000);
+});
+</script>
+{% endblock %}

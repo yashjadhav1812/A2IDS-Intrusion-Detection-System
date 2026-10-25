@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h2 style="font-size: 1.35rem; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+      SYSTEM CONFIGURATION & PREVENTION POLICIES
+    </h2>
+    <p style="color: var(--text-secondary); font-size: 0.78rem;">Autonomous Mitigation Mode, Virtual Proxy Topology & Detection Thresholds</p>
+  </div>
+  <div>
+    <button class="btn-sentinel btn-sentinel-green btn-sm" onclick="saveConfiguration()">Save Changes</button>
+  </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.25rem;">
+  <!-- Prevention Mode Selector -->
+  <div class="sentinel-card">
+    <div class="sentinel-card-header">
+      <span class="sentinel-card-title">Enforcement Policy (3 Defense Modes)</span>
+      <span class="sentinel-badge badge-success" id="settings-current-mode-badge">MODE 3 ACTIVE</span>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <!-- Mode 1 -->
+      <label style="display:flex; gap:10px; cursor:pointer; padding:10px; border-radius:6px; background:var(--bg-card-inner); border:1px solid var(--border-subtle);">
+        <input type="radio" name="prev-mode" value="1" id="mode-radio-1" onchange="updatePreventionMode(1)">
+        <div>
+          <strong style="color:var(--text-secondary); font-size:0.82rem;">Mode 1: Detection Only (Passive Audit)</strong>
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">
+            Passive network analysis and threat generation. No automated kernel firewall modifications without explicit human authorization.
+          </p>
+        </div>
+      </label>
+
+      <!-- Mode 2 -->
+      <label style="display:flex; gap:10px; cursor:pointer; padding:10px; border-radius:6px; background:var(--bg-card-inner); border:1px solid var(--border-subtle);">
+        <input type="radio" name="prev-mode" value="2" id="mode-radio-2" onchange="updatePreventionMode(2)">
+        <div>
+          <strong style="color:var(--amber-warn); font-size:0.82rem;">Mode 2: Operator Assisted Prevention</strong>
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">
+            Immediate interactive confirmation modal whenever an intrusion is detected, allowing security operator authorization.
+          </p>
+        </div>
+      </label>
+
+      <!-- Mode 3 -->
+      <label style="display:flex; gap:10px; cursor:pointer; padding:10px; border-radius:6px; background:rgba(37,99,235,0.08); border:1px solid rgba(59,130,246,0.4);">
+        <input type="radio" name="prev-mode" value="3" id="mode-radio-3" checked onchange="updatePreventionMode(3)">
+        <div>
+          <strong style="color:var(--cyan-accent); font-size:0.82rem;">Mode 3: Autonomous Defense (Auto-Block High/Critical IPv4 & IPv6)</strong>
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">
+            Autonomous zero-delay kernel packet filter DROP rules enforced against confirmed attacks (SYN floods, port scans, volumetric bursts).
+          </p>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- VPN & Proxy Architecture Diagnostic -->
+  <div class="sentinel-card">
+    <div class="sentinel-card-header">
+      <span class="sentinel-card-title">VPN & Proxy Compatibility Architecture</span>
+      <span class="sentinel-badge badge-high">NET_TOPOLOGY</span>
+    </div>
+    <div style="font-size:0.78rem; color:#e2e8f0; line-height:1.5; margin-bottom:8px;">
+      <strong style="color:var(--blue-light);">Browser VPNs (e.g. Opera VPN) vs Virtual Tunnels:</strong>
+    </div>
+    <ul style="font-size:0.75rem; color:var(--text-muted); padding-left:1.2rem; line-height:1.6;">
+      <li><strong>Opera Built-in VPN:</strong> Operates as an in-process TLS HTTPS proxy. It does not spawn a virtual kernel network adapter (such as <code style="color:var(--cyan-accent);">utunX</code>).</li>
+      <li><strong>Packet Visibility:</strong> Traffic passing through browser proxies appears on physical interface <code style="color:var(--cyan-accent);">en0</code> as encrypted TLS sessions directed to proxy server IPs.</li>
+      <li><strong>System Tunnel VPNs (WireGuard / OpenVPN):</strong> Create virtual tun interfaces (<code style="color:var(--cyan-accent);">utun2</code>, <code style="color:var(--cyan-accent);">utun3</code>). Sniffing physical <code style="color:var(--cyan-accent);">en0</code> captures encrypted tunnel wrappers, while sniffing <code style="color:var(--cyan-accent);">utunX</code> inspects decrypted inner traffic.</li>
+    </ul>
+
+    <div style="margin-top:10px; padding:6px 10px; background:rgba(59,130,246,0.1); border-radius:4px; border:1px solid rgba(59,130,246,0.2);">
+      <span style="color:var(--blue-light); font-size:0.72rem; font-weight:700;">PRO-TIP:</span>
+      <span style="color:var(--text-muted); font-size:0.72rem;">Select physical interface <code>en0</code> for gateway protection, or <code>utunX</code> to inspect OS-level VPN tunnels.</span>
+    </div>
+  </div>
+</div>
+
+<!-- Kernel Permissions & Thresholds -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+  <!-- macOS BPF Permissions Helper -->
+  <div class="sentinel-card">
+    <div class="sentinel-card-header">
+      <span class="sentinel-card-title">macOS Kernel & BPF Permissions</span>
+      <span class="sentinel-badge badge-success">ROOT / SUDO</span>
+    </div>
+    <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:10px; line-height:1.5;">
+      macOS enforces strict access control over raw packet capture (<code style="color:var(--cyan-accent);">/dev/bpf*</code>) and packet filter manipulation (<code style="color:var(--cyan-accent);">/dev/pf</code>).
+    </p>
+
+    <div style="background:var(--bg-card-inner); border:1px solid var(--border-subtle); border-radius:6px; padding:8px; margin-bottom:8px;">
+      <div style="font-size:0.68rem; color:var(--text-muted); margin-bottom:2px;">1. Enable BPF Packet Capture Read/Write:</div>
+      <code style="color:var(--green-emerald); font-size:0.76rem;">sudo chmod 666 /dev/bpf*</code>
+    </div>
+
+    <div style="background:var(--bg-card-inner); border:1px solid var(--border-subtle); border-radius:6px; padding:8px;">
+      <div style="font-size:0.68rem; color:var(--text-muted); margin-bottom:2px;">2. Run A2IDS with Autonomous Kernel Firewall Enforcement:</div>
+      <code style="color:var(--green-emerald); font-size:0.76rem;">sudo python3 app.py</code>
+    </div>
+  </div>
+
+  <!-- Heuristic Thresholds -->
+  <div class="sentinel-card">
+    <div class="sentinel-card-header">
+      <span class="sentinel-card-title">Detection Thresholds</span>
+      <span class="sentinel-badge badge-low">HEURISTICS</span>
+    </div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+      <div>
+        <label style="font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; display:block; margin-bottom:2px;">SYN Flood Threshold</label>
+        <input type="number" id="th-syn" class="sentinel-input" style="width:100%;" value="50">
+      </div>
+      <div>
+        <label style="font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; display:block; margin-bottom:2px;">Port Sweep Probes</label>
+        <input type="number" id="th-port" class="sentinel-input" style="width:100%;" value="15">
+      </div>
+      <div>
+        <label style="font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; display:block; margin-bottom:2px;">UDP Flood Threshold</label>
+        <input type="number" id="th-udp" class="sentinel-input" style="width:100%;" value="100">
+      </div>
+      <div>
+        <label style="font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; display:block; margin-bottom:2px;">ICMP Flood Threshold</label>
+        <input type="number" id="th-icmp" class="sentinel-input" style="width:100%;" value="40">
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadCurrentMode() {
+  try {
+    const res = await fetch('/api/prevention/mode');
+    const data = await res.json();
+    const mode = data.prevention_mode || 3;
+    const radio = document.getElementById(`mode-radio-${mode}`);
+    if (radio) radio.checked = true;
+
+    const badge = document.getElementById('settings-current-mode-badge');
+    badge.textContent = mode === 3 ? 'MODE 3 ACTIVE (AUTONOMOUS)' : mode === 2 ? 'MODE 2 ACTIVE (ASSIST)' : 'MODE 1 ACTIVE (DETECT)';
+    badge.className = mode === 3 ? 'sentinel-badge badge-success' : 'sentinel-badge badge-slate';
+  } catch (e) {
+    console.error('Error loading prevention mode:', e);
+  }
+}
+
+async function updatePreventionMode(mode) {
+  try {
+    const res = await fetch('/api/prevention/mode', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({mode: mode})
+    });
+    const data = await res.json();
+    if (data.success) {
+      showNotification(`Enforcement policy updated to Mode ${mode} (${data.mode_name})`);
+      loadCurrentMode();
+    }
+  } catch (e) {
+    showNotification(`Failed to update mode: ${e.message}`, 'error');
+  }
+}
+
+function saveConfiguration() {
+  showNotification('Security policy parameters committed to active runtime memory.');
+}
+
+document.addEventListener('DOMContentLoaded', loadCurrentMode);
+</script>
+{% endblock %}

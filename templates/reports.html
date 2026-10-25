@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h2 style="font-size: 1.35rem; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+      AUDIT TRAIL & OPERATOR LOGS
+    </h2>
+    <p style="color: var(--text-secondary); font-size: 0.78rem;">Cryptographically Order-Preserved Forensic Trail of Operator & Autonomous Actions</p>
+  </div>
+  <div style="display:flex; gap:8px;">
+    <button class="btn-sentinel btn-sentinel-outline btn-sm" onclick="handleAuditRefresh()">Refresh Logs</button>
+    <a href="/api/export/alerts" class="btn-sentinel btn-sentinel-outline btn-sm">Export Alerts (CSV)</a>
+    <a href="/api/export/packets" class="btn-sentinel btn-sentinel-green btn-sm">Export Packets (CSV)</a>
+  </div>
+</div>
+
+<!-- Audit Log Table -->
+<div class="sentinel-card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 0.75rem 1rem; background: rgba(8, 13, 28, 0.9); border-bottom: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+    <span style="font-size: 0.76rem; font-weight: 800; color: #ffffff;">
+      IMMUTABLE AUDIT LOG ENTRIES
+    </span>
+    <span id="audit-count-badge" class="sentinel-badge badge-success">SYNCED</span>
+  </div>
+  <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+    <table class="sentinel-table">
+      <thead>
+        <tr>
+          <th style="width: 50px;">ID</th>
+          <th style="width: 130px;">Timestamp</th>
+          <th style="width: 170px;">Action Event</th>
+          <th style="width: 120px;">Operator / Actor</th>
+          <th style="width: 90px;">Status</th>
+          <th>Forensic Context & Operation Details</th>
+        </tr>
+      </thead>
+      <tbody id="audit-table-body">
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+            Loading system audit trail...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function handleAuditRefresh() {
+  showNotification('Refreshing audit logs...', 'info');
+  await loadAuditLogs();
+  showNotification('Audit logs updated successfully', 'info');
+}
+
+async function loadAuditLogs() {
+  try {
+    const res = await fetch('/api/audit?limit=150');
+    const data = await res.json();
+    const tbody = document.getElementById('audit-table-body');
+
+    if (!data.logs || data.logs.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 2.5rem; color: var(--text-muted);">No audit logs recorded yet.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = '';
+    data.logs.forEach(l => {
+      const tr = document.createElement('tr');
+      const isSuccess = l.status === 'SUCCESS';
+      const isOperator = (l.actor === 'OPERATOR');
+      const isAuto = (l.actor === 'AUTO_PREVENTION');
+
+      tr.innerHTML = `
+        <td style="color:var(--text-muted); font-size:0.72rem; font-family:var(--font-mono);">#${l.id}</td>
+        <td style="color:var(--text-muted); font-size:0.72rem; font-family:var(--font-mono);">${l.datetime_str || ''}</td>
+        <td><strong style="color:${isOperator ? 'var(--blue-light)' : isAuto ? 'var(--purple-accent)' : '#ffffff'}; font-size:0.8rem;">${l.event_type}</strong></td>
+        <td>
+          <span class="sentinel-badge ${isOperator ? 'badge-low' : isAuto ? 'badge-high' : 'badge-slate'}">
+            ${l.actor || 'SYSTEM'}
+          </span>
+        </td>
+        <td>
+          <span class="sentinel-badge ${isSuccess ? 'badge-success' : 'badge-critical'}">
+            ${l.status}
+          </span>
+        </td>
+        <td style="color:#e2e8f0; font-size: 0.78rem;">${l.details || ''}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('audit-count-badge').textContent = `${data.logs.length} RECORDS`;
+
+  } catch (e) {
+    console.error('Error loading audit logs:', e);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadAuditLogs();
+  setInterval(loadAuditLogs, 5000);
+});
+</script>
+{% endblock %}

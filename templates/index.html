@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Top Header & Refresh Action -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h2 style="font-size: 1.35rem; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+      OPERATIONS DASHBOARD & SYSTEM OVERVIEW
+    </h2>
+    <p style="color: var(--text-secondary); font-size: 0.78rem;">Autonomous Network Intrusion Detection & Prevention System (A2IDS)</p>
+  </div>
+  <div style="display: flex; gap: 10px; align-items: center;">
+    <button class="btn-sentinel btn-sentinel-outline btn-sm" onclick="handleDashboardRefresh()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px;"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Refresh Dashboard
+    </button>
+    <a href="/monitor" class="btn-sentinel btn-sentinel-green btn-sm">Open Live Sniffer</a>
+  </div>
+</div>
+
+<!-- Primary Telemetry KPI Row: 4 Essential Working Metrics -->
+<div class="sentinel-kpi-row" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 1.25rem;">
+  <!-- Total Packets -->
+  <div class="kpi-card">
+    <div class="kpi-header">
+      <span class="kpi-title">Packets Captured</span>
+      <span class="kpi-tag kpi-tag-blue" id="kpi-rate-tag">0 pps</span>
+    </div>
+    <div class="kpi-value" id="kpi-packets">0</div>
+  </div>
+
+  <!-- Active Flows -->
+  <div class="kpi-card">
+    <div class="kpi-header">
+      <span class="kpi-title">Active Network Flows</span>
+      <span class="kpi-tag" style="background:rgba(255,255,255,0.08); color:var(--text-muted);">TRACKING</span>
+    </div>
+    <div class="kpi-value" id="kpi-flows" style="color:var(--cyan-accent);">0</div>
+  </div>
+
+  <!-- Threat Incidents -->
+  <div class="kpi-card">
+    <div class="kpi-header">
+      <span class="kpi-title">Threat Incidents</span>
+      <span class="kpi-tag kpi-tag-red" id="kpi-crit-tag">0 CRIT</span>
+    </div>
+    <div class="kpi-value" id="kpi-threats" style="color:var(--magenta-rose);">0</div>
+  </div>
+
+  <!-- Active Kernel Blocks -->
+  <div class="kpi-card">
+    <div class="kpi-header">
+      <span class="kpi-title">Active Kernel Blocks</span>
+      <span class="kpi-tag" style="background:rgba(56,189,248,0.15); color:var(--blue-light);">PF_DROP</span>
+    </div>
+    <div class="kpi-value" id="kpi-blocks" style="color:var(--green-emerald);">0</div>
+  </div>
+</div>
+
+<!-- Project Information & System Overview Section -->
+<div class="sentinel-card" style="margin-bottom: 1.25rem; background: linear-gradient(135deg, rgba(7, 20, 38, 0.95) 0%, rgba(13, 27, 54, 0.95) 100%); border: 1px solid rgba(0, 210, 255, 0.25);">
+  <div class="sentinel-card-header" style="margin-bottom: 0.75rem;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--cyan-accent); box-shadow: 0 0 10px var(--cyan-accent);"></span>
+      <span class="sentinel-card-title" style="font-size: 0.95rem; letter-spacing: 0.5px;">PROJECT OVERVIEW & DEFENSE ARCHITECTURE</span>
+    </div>
+    <span class="sentinel-badge badge-success">VERSION 2.4-ENTERPRISE</span>
+  </div>
+
+  <p style="color: #cfd8dc; font-size: 0.82rem; line-height: 1.6; margin-bottom: 1rem;">
+    <strong>A2IDS</strong> is an autonomous, evidence-driven Network Intrusion Detection & Prevention System designed to safeguard host infrastructure against volumetric attacks, network reconnaissance, and protocol anomalies in real time. It operates directly at the operating system packet filter level, combining heuristic sliding-window detectors with machine learning intelligence and a strict three-tier safety controller.
+  </p>
+
+  <!-- 4 Architecture Highlights -->
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1rem;">
+    <div style="background: rgba(4, 10, 22, 0.75); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 10px;">
+      <div style="font-size: 0.72rem; font-weight: 800; color: var(--cyan-accent); margin-bottom: 4px;">1. BPF INGESTION (en0)</div>
+      <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4;">Direct kernel frame decoding on primary interface <code>en0</code> with high-throughput 10,000-packet buffer memory.</div>
+    </div>
+    <div style="background: rgba(4, 10, 22, 0.75); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 10px;">
+      <div style="font-size: 0.72rem; font-weight: 800; color: var(--purple-accent); margin-bottom: 4px;">2. DUAL-ENGINE ANALYSIS</div>
+      <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4;">Heuristic SYN-flood, port scan & amplification rules evaluated in parallel with 17-feature Random Forest ML scoring.</div>
+    </div>
+    <div style="background: rgba(4, 10, 22, 0.75); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 10px;">
+      <div style="font-size: 0.72rem; font-weight: 800; color: var(--green-emerald); margin-bottom: 4px;">3. 3-TIER SAFETY ENGINE</div>
+      <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4;">Rigorous lock-out prevention: Category A (loopback/local IPs), Category B (gateways/DNS), Category C (configurable).</div>
+    </div>
+    <div style="background: rgba(4, 10, 22, 0.75); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 10px;">
+      <div style="font-size: 0.72rem; font-weight: 800; color: var(--magenta-rose); margin-bottom: 4px;">4. KERNEL PF MITIGATION</div>
+      <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4;">Instantaneous macOS <code>pfctl</code> table drops with kernel state verification (BLOCKED_VERIFIED) for IPv4 & IPv6.</div>
+    </div>
+  </div>
+
+  <!-- Quick Nav Buttons Grid -->
+  <div style="display: flex; gap: 10px; flex-wrap: wrap; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle);">
+    <a href="/monitor" class="btn-sentinel btn-sentinel-outline btn-sm">&gt; Live Packet Sniffer</a>
+    <a href="/alerts" class="btn-sentinel btn-sentinel-outline btn-sm">&gt; Threat Incidents</a>
+    <a href="/analysis" class="btn-sentinel btn-sentinel-outline btn-sm">&gt; Flow Analytics</a>
+    <a href="/firewall" class="btn-sentinel btn-sentinel-outline btn-sm">&gt; Firewall & Defense</a>
+    <a href="/reports" class="btn-sentinel btn-sentinel-outline btn-sm">&gt; Audit Logs</a>
+    <a href="/settings" class="btn-sentinel btn-sentinel-outline btn-sm">&gt; Defense Settings</a>
+  </div>
+</div>
+
+<!-- Essential Working Charts: 2 Focused Panels -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 1.25rem;">
+  <!-- Chart 1: Real-Time Traffic & Packet Ingestion Rate -->
+  <div class="sentinel-card">
+    <div class="sentinel-card-header">
+      <div>
+        <span class="sentinel-card-title">Real-Time Traffic Throughput & Packet Velocity</span>
+        <div style="font-size: 0.68rem; color: var(--text-muted); margin-top: 2px;">Packets per second ingested via BPF kernel worker</div>
+      </div>
+      <span class="sentinel-badge badge-success" id="traffic-stream-badge">LIVE STREAMING</span>
+    </div>
+    <div style="height: 220px; position: relative;">
+      <canvas id="realtimeTrafficChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Chart 2: Protocol Breakdown & Severity Distribution -->
+  <div class="sentinel-card">
+    <div class="sentinel-card-header">
+      <span class="sentinel-card-title">Observed Protocols & Traffic Types</span>
+      <span class="sentinel-badge badge-low">L3 / L4</span>
+    </div>
+    <div style="height: 220px; position: relative;">
+      <canvas id="protocolBreakdownChart"></canvas>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let trafficChart = null;
+let protocolChart = null;
+const rateHistory = Array(20).fill(0);
+const labelHistory = Array(20).fill('');
+
+function initCharts() {
+  const ctxTraffic = document.getElementById('realtimeTrafficChart').getContext('2d');
+  trafficChart = new Chart(ctxTraffic, {
+    type: 'line',
+    data: {
+      labels: labelHistory,
+      datasets: [{
+        label: 'Packets / Sec (pps)',
+        data: rateHistory,
+        borderColor: '#00D2FF',
+        backgroundColor: 'rgba(0, 210, 255, 0.12)',
+        borderWidth: 2,
+        tension: 0.35,
+        fill: true,
+        pointRadius: 2,
+        pointBackgroundColor: '#00D2FF'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      scales: {
+        x: { display: false },
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#64748b', font: { size: 10, family: 'var(--font-mono)' } }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#071426',
+          titleColor: '#00D2FF',
+          bodyColor: '#ffffff',
+          borderColor: 'rgba(0,210,255,0.3)',
+          borderWidth: 1
+        }
+      }
+    }
+  });
+
+  const ctxProto = document.getElementById('protocolBreakdownChart').getContext('2d');
+  protocolChart = new Chart(ctxProto, {
+    type: 'doughnut',
+    data: {
+      labels: ['TCP', 'UDP', 'ICMP', 'DNS / HTTPS', 'Other'],
+      datasets: [{
+        data: [1, 1, 1, 1, 1],
+        backgroundColor: ['#00D2FF', '#7C4DFF', '#00E676', '#FF1744', '#64748b'],
+        borderWidth: 2,
+        borderColor: '#071426'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 10 }
+        }
+      }
+    }
+  });
+}
+
+async function refreshDashboardData(isManual = false) {
+  try {
+    const [statsRes, statusRes, alertsRes] = await Promise.all([
+      fetch('/api/stats'),
+      fetch('/api/status'),
+      fetch('/api/alerts?limit=50')
+    ]);
+
+    const stats = await statsRes.json();
+    const status = await statusRes.json();
+    const alertsData = await alertsRes.json();
+
+    const sniffer = status.sniffer || {};
+    const pps = sniffer.packets_per_sec || 0;
+    const totalPkts = stats.total_packets || stats.packets_captured || 0;
+    const activeFlows = stats.active_flows || 0;
+    const totalAlerts = stats.total_alerts || 0;
+    const activeBlocks = stats.active_blocks || stats.active_firewall_blocks || 0;
+
+    // Update KPI counters
+    const kpiPkts = document.getElementById('kpi-packets');
+    if (kpiPkts) kpiPkts.textContent = totalPkts.toLocaleString();
+
+    const kpiFlows = document.getElementById('kpi-flows');
+    if (kpiFlows) kpiFlows.textContent = activeFlows.toLocaleString();
+
+    const kpiThreats = document.getElementById('kpi-threats');
+    if (kpiThreats) kpiThreats.textContent = totalAlerts.toLocaleString();
+
+    const kpiBlocks = document.getElementById('kpi-blocks');
+    if (kpiBlocks) kpiBlocks.textContent = activeBlocks.toLocaleString();
+
+    const kpiRate = document.getElementById('kpi-rate-tag');
+    if (kpiRate) kpiRate.textContent = `${pps} pps`;
+
+    // Calculate critical threats count
+    let critCount = 0;
+    (alertsData.alerts || []).forEach(a => {
+      if ((a.severity || '').toUpperCase() === 'CRITICAL') critCount++;
+    });
+    const critTag = document.getElementById('kpi-crit-tag');
+    if (critTag) critTag.textContent = `${critCount} CRIT`;
+
+    // Update live throughput graph
+    rateHistory.push(pps);
+    rateHistory.shift();
+    if (trafficChart) {
+      trafficChart.update('none');
+    }
+
+    // Update protocols chart from live traffic data
+    const protocols = stats.protocols || {};
+    const tcp = protocols['TCP'] || protocols['HTTP'] || protocols['TLS/HTTPS'] || 0;
+    const udp = protocols['UDP'] || 0;
+    const icmp = protocols['ICMP'] || protocols['ICMPv6'] || 0;
+    const dns = protocols['DNS'] || 0;
+    const other = Math.max(1, totalPkts - (tcp + udp + icmp + dns));
+
+    if (protocolChart && totalPkts > 0) {
+      protocolChart.data.datasets[0].data = [tcp || 1, udp || 1, icmp || 1, dns || 1, other || 1];
+      protocolChart.update('none');
+    }
+
+    if (isManual) {
+      showNotification('Dashboard telemetry refreshed successfully', 'info');
+    }
+  } catch (e) {
+    console.error('Error refreshing dashboard data:', e);
+  }
+}
+
+
+async function handleDashboardRefresh() {
+  showNotification('Refreshing telemetry...', 'info');
+  await refreshDashboardData(true);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initCharts();
+  refreshDashboardData();
+  setInterval(() => refreshDashboardData(false), 3000);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h2 style="font-size: 1.35rem; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+      DEEP TRAFFIC & BEHAVIORAL ANALYTICS
+    </h2>
+    <p style="color: var(--text-secondary); font-size: 0.78rem;">17-Feature Bidirectional Flow Aggregation, Protocol Breakdown & Temporal Attack Forensics</p>
+  </div>
+  <div>
+    <button class="btn-sentinel btn-sentinel-outline btn-sm" onclick="handleAnalysisRefresh()">Refresh</button>
+  </div>
+</div>
+
+<!-- KPI Mini Ribbon -->
+<div class="sentinel-kpi-row" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 1.25rem;">
+  <div class="kpi-card">
+    <div class="kpi-header"><span class="kpi-title">Active Flows</span><span class="kpi-tag kpi-tag-blue">L4</span></div>
+    <div class="kpi-value" id="analysis-flows-count">0</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-header"><span class="kpi-title">Anomalies Detected</span><span class="kpi-tag kpi-tag-red">OUTLIERS</span></div>
+    <div class="kpi-value" id="analysis-anom-count" style="color:var(--magenta-rose);">0</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-header"><span class="kpi-title">Feature Vector</span><span class="kpi-tag kpi-tag-green">CICIDS</span></div>
+    <div class="kpi-value" style="color:var(--green-emerald);">17</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-header"><span class="kpi-title">High Threats</span><span class="kpi-tag kpi-tag-purple">CRITICAL</span></div>
+    <div class="kpi-value" id="analysis-threats-count" style="color:var(--purple-accent);">0</div>
+  </div>
+</div>
+
+<!-- 3 Analytical Charts -->
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.25rem;">
+  <div class="sentinel-card">
+    <div class="sentinel-card-header"><span class="sentinel-card-title">Packet Throughput (pps)</span><span class="sentinel-badge badge-success">LIVE</span></div>
+    <div style="height: 190px; position: relative;"><canvas id="analysisTrafficChart"></canvas></div>
+  </div>
+  <div class="sentinel-card">
+    <div class="sentinel-card-header"><span class="sentinel-card-title">Protocol Distribution</span><span class="sentinel-badge badge-low">L3 / L4</span></div>
+    <div style="height: 190px; position: relative;"><canvas id="analysisProtocolChart"></canvas></div>
+  </div>
+  <div class="sentinel-card">
+    <div class="sentinel-card-header"><span class="sentinel-card-title">Attack Profile Composition</span><span class="sentinel-badge badge-critical">INCIDENTS</span></div>
+    <div style="height: 190px; position: relative;"><canvas id="analysisThreatChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Bidirectional Flows Table -->
+<div class="sentinel-card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 0.75rem 1rem; background: rgba(8, 13, 28, 0.9); border-bottom: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+    <span style="font-size: 0.76rem; font-weight: 800; color: #ffffff;">
+      BIDIRECTIONAL 5-TUPLE AGGREGATIONS & AI FLOW ATTRIBUTION
+    </span>
+    <label style="display:flex; align-items:center; gap:6px; font-size:0.72rem; color:var(--text-muted); cursor:pointer;">
+      <input type="checkbox" id="filter-anom-only" onchange="fetchAnalysisData()"> Show Only Anomalies
+    </label>
+  </div>
+  <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+    <table class="sentinel-table">
+      <thead>
+        <tr>
+          <th>Flow Key (Endpoints)</th>
+          <th>Protocol</th>
+          <th>Packets (Fwd/Bwd)</th>
+          <th>Bytes (Fwd/Bwd)</th>
+          <th>Duration (ms)</th>
+          <th>Mean Length</th>
+          <th>SYN Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="flows-tbody">
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            No flows recorded in current window. Start live capture to observe flows.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let aTrafficChart, aProtoChart, aThreatChart;
+let ppsHistory = Array(20).fill(0);
+let labels = Array(20).fill('');
+
+function initAnalysisCharts() {
+  const ctxT = document.getElementById('analysisTrafficChart').getContext('2d');
+  aTrafficChart = new Chart(ctxT, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Packets/sec',
+        data: ppsHistory,
+        borderColor: '#00d2ff',
+        backgroundColor: 'rgba(0, 210, 255, 0.1)',
+        borderWidth: 2,
+        tension: 0.35,
+        fill: true,
+        pointRadius: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: { 
+          beginAtZero: true,
+          ticks: { color: '#64748b', font: { size: 9, family: 'monospace' } },
+          grid: { color: 'rgba(255, 255, 255, 0.04)' }
+        }
+      }
+    }
+  });
+
+  const ctxP = document.getElementById('analysisProtocolChart').getContext('2d');
+  aProtoChart = new Chart(ctxP, {
+    type: 'doughnut',
+    data: {
+      labels: ['TCP', 'UDP', 'DNS', 'HTTPS', 'ICMP'],
+      datasets: [{
+        data: [50, 25, 12, 8, 3],
+        backgroundColor: ['#00d2ff', '#2563eb', '#8b5cf6', '#10b981', '#f43f5e'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: { color: '#94a3b8', font: { size: 9, family: '-apple-system' }, boxWidth: 8 }
+        }
+      }
+    }
+  });
+
+  const ctxTh = document.getElementById('analysisThreatChart').getContext('2d');
+  aThreatChart = new Chart(ctxTh, {
+    type: 'bar',
+    data: {
+      labels: ['SYN Flood', 'Port Sweep', 'Amplification', 'Anomaly', 'Benign'],
+      datasets: [{
+        data: [0, 0, 0, 0, 10],
+        backgroundColor: ['#f43f5e', '#8b5cf6', '#f59e0b', '#ec4899', '#00d2ff'],
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { 
+          ticks: { color: '#64748b', font: { size: 8, family: 'monospace' } },
+          grid: { display: false }
+        },
+        y: { 
+          beginAtZero: true,
+          ticks: { color: '#64748b', font: { size: 9, family: 'monospace' } },
+          grid: { color: 'rgba(255, 255, 255, 0.04)' }
+        }
+      }
+    }
+  });
+}
+
+async function handleAnalysisRefresh() {
+  showNotification('Refreshing flow analytics...', 'info');
+  await fetchAnalysisData();
+  showNotification('Flow analytics updated successfully', 'info');
+}
+
+async function fetchAnalysisData() {
+  try {
+    const anomOnlyEl = document.getElementById('filter-anom-only');
+    const anomOnly = anomOnlyEl ? anomOnlyEl.checked : false;
+    const [flowsRes, statsRes, alertsRes] = await Promise.all([
+      fetch(`/api/flows?limit=100&anom_only=${anomOnly ? 'true' : 'false'}`),
+      fetch('/api/stats'),
+      fetch('/api/alerts?limit=100')
+    ]);
+
+    const flowsData = await flowsRes.json();
+    const statsData = await statsRes.json();
+    const alertsData = await alertsRes.json();
+
+    const flowsCountEl = document.getElementById('analysis-flows-count');
+    if (flowsCountEl) flowsCountEl.textContent = (statsData.active_flows || 0).toLocaleString();
+
+    const threatsCountEl = document.getElementById('analysis-threats-count');
+    if (threatsCountEl) threatsCountEl.textContent = (statsData.total_alerts || 0).toLocaleString();
+
+    let anomCount = 0;
+    const flows = flowsData.live_flows || flowsData.db_flows || [];
+    const tbody = document.getElementById('flows-tbody');
+
+    if (tbody) {
+      if (flows.length > 0) {
+        tbody.innerHTML = '';
+        flows.forEach(f => {
+          if (f.is_anomaly) anomCount++;
+          const tr = document.createElement('tr');
+          if (f.is_anomaly) tr.className = 'alert-critical';
+
+          tr.innerHTML = `
+            <td>
+              <code style="color:var(--blue-light);">${f.src_ip}:${f.src_port}</code>
+              <span style="color:var(--text-muted); margin:0 4px;">&harr;</span>
+              <code style="color:#ffffff;">${f.dst_ip}:${f.dst_port}</code>
+            </td>
+            <td><span class="sentinel-badge badge-low">${f.protocol || 'TCP'}</span></td>
+            <td style="color:var(--text-muted); font-family:var(--font-mono); font-size:0.75rem;">${f.fwd_packets || 0} / ${f.bwd_packets || 0}</td>
+            <td style="color:var(--text-muted); font-family:var(--font-mono); font-size:0.75rem;">${f.fwd_bytes || 0} / ${f.bwd_bytes || 0}</td>
+            <td style="color:var(--text-muted); font-family:var(--font-mono); font-size:0.75rem;">${((f.duration_sec || 0) * 1000).toFixed(0)} ms</td>
+            <td style="color:var(--text-muted); font-family:var(--font-mono); font-size:0.75rem;">${(f.pkt_len_mean || 0).toFixed(1)} B</td>
+            <td style="color:var(--text-muted); font-family:var(--font-mono); font-size:0.75rem;">${f.syn_count || 0}</td>
+            <td>
+              <span class="sentinel-badge ${f.is_anomaly ? 'badge-critical' : 'badge-success'}">
+                ${f.is_anomaly ? 'ANOMALY' : 'NORMAL'}
+              </span>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } else {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+              No active network flows recorded. Start packet capture to aggregate flows.
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    const anomCountEl = document.getElementById('analysis-anom-count');
+    if (anomCountEl) anomCountEl.textContent = anomCount.toLocaleString();
+
+    if (alertsData.alerts) {
+      let syn = 0, port = 0, amp = 0, other = 0;
+      alertsData.alerts.forEach(a => {
+        const cat = (a.category || '').toUpperCase();
+        if (cat.includes('SYN')) syn++;
+        else if (cat.includes('SCAN') || cat.includes('PORT')) port++;
+        else if (cat.includes('FLOOD') || cat.includes('AMPLIF')) amp++;
+        else other++;
+      });
+      aThreatChart.data.datasets[0].data = [syn, port, amp, other, Math.max(10, (statsData.packets_captured || 0) / 100)];
+      aThreatChart.update('none');
+    }
+
+  } catch (e) {
+    console.error('Error fetching analysis data:', e);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initAnalysisCharts();
+  fetchAnalysisData();
+  setInterval(fetchAnalysisData, 5000);
+});
+</script>
+{% endblock %}

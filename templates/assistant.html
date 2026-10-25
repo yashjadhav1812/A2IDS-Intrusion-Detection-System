@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h2 style="font-size: 1.35rem; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+      NEURAL SECURITY COPILOT
+    </h2>
+    <p style="color: var(--text-secondary); font-size: 0.78rem;">Context-Aware Threat Forensics, Packet Heuristics & Kernel Mitigation Guidance</p>
+  </div>
+  <div>
+    <span class="sentinel-badge badge-success" id="ai-active-provider">HYBRID_AI_ACTIVE</span>
+  </div>
+</div>
+
+<div style="display: flex; gap: 12px; height: calc(100vh - 190px);">
+  <!-- Suggested Prompts Sidebar -->
+  <div style="width: 290px; display: flex; flex-direction: column;">
+    <div class="sentinel-card" style="padding: 1rem; flex: 1; overflow-y: auto;">
+      <div style="font-size: 0.68rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px;">
+        FORENSIC INVESTIGATION CHIPS
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <button class="btn-sentinel btn-sentinel-outline btn-sm" style="text-align:left; justify-content:flex-start;" onclick="sendQuickPrompt('What is the current status of the network and capture engine?')">
+          &rarr; Network Status Summary
+        </button>
+        <button class="btn-sentinel btn-sentinel-outline btn-sm" style="text-align:left; justify-content:flex-start;" onclick="sendQuickPrompt('Explain how TCP SYN flood attacks work and how our system detects them.')">
+          &rarr; Explain SYN Flood Detection
+        </button>
+        <button class="btn-sentinel btn-sentinel-outline btn-sm" style="text-align:left; justify-content:flex-start;" onclick="sendQuickPrompt('How does the AI behavioral engine classify network intrusions in this system?')">
+          &rarr; Explain AI Detection Logic
+        </button>
+        <button class="btn-sentinel btn-sentinel-outline btn-sm" style="text-align:left; justify-content:flex-start;" onclick="sendQuickPrompt('How does Opera VPN affect network capture and why does scapy see different traffic?')">
+          &rarr; Opera VPN Capture Impact
+        </button>
+        <button class="btn-sentinel btn-sentinel-outline btn-sm" style="text-align:left; justify-content:flex-start;" onclick="sendQuickPrompt('How do I fix BPF capture permissions on macOS?')">
+          &rarr; Fix macOS BPF Permissions
+        </button>
+        <button class="btn-sentinel btn-sentinel-outline btn-sm" style="text-align:left; justify-content:flex-start;" onclick="sendQuickPrompt('What active firewall blocks are currently in place?')">
+          &rarr; Active Firewall Blocks
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Container -->
+  <div class="sentinel-card" style="flex: 1; height: 100%; display: flex; flex-direction: column; padding: 0; overflow: hidden;">
+    <div style="flex: 1; overflow-y: auto; padding: 1.25rem; display: flex; flex-direction: column; gap: 12px;" id="chat-messages-box">
+      <div class="chat-bubble chat-ai" style="max-width: 85%;">
+        <strong style="color:var(--cyan-accent);">A2IDS Neural Copilot Initialized.</strong><br>
+        Direct telemetry link to packet sniffer, flow engine, and macOS Packet Filter active.
+        Ask about live threats, packet forensics, or defense commands.
+      </div>
+    </div>
+
+    <!-- Chat Input Area -->
+    <div style="padding: 0.85rem; background: rgba(8, 13, 28, 0.95); border-top: 1px solid var(--border-subtle); display: flex; gap: 8px;">
+      <input type="text" id="chat-input" class="sentinel-input" style="flex: 1;" placeholder="Ask A2IDS Copilot about network traffic, threats, or security architecture..." onkeydown="if(event.key === 'Enter') sendMessage()">
+      <button class="btn-sentinel btn-sentinel-blue" onclick="sendMessage()">Send Command</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function sendQuickPrompt(promptText) {
+  document.getElementById('chat-input').value = promptText;
+  sendMessage();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const message = input.value.trim();
+  if (!message) return;
+
+  const chatBox = document.getElementById('chat-messages-box');
+
+  const userDiv = document.createElement('div');
+  userDiv.className = 'chat-bubble chat-user';
+  userDiv.textContent = message;
+  chatBox.appendChild(userDiv);
+
+  input.value = '';
+  chatBox.scrollTop = chatBox.scrollHeight;
+
+  const aiDiv = document.createElement('div');
+  aiDiv.className = 'chat-bubble chat-ai';
+  aiDiv.innerHTML = '<span style="color:var(--cyan-accent)">[A2IDS_NEURAL_REASONING...]</span>';
+  chatBox.appendChild(aiDiv);
+  chatBox.scrollTop = chatBox.scrollHeight;
+
+  try {
+    const res = await fetch('/api/assistant/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: message})
+    });
+    const data = await res.json();
+
+    let formatted = (data.response || 'No response returned.')
+      .replace(/```([\s\S]*?)```/g, '<pre style="background:#080d1c; padding:8px; border-radius:4px; margin:4px 0; border:1px solid rgba(255,255,255,0.06);"><code>$1</code></pre>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/\n/g, '<br>');
+
+    let actionHtml = '';
+    if (data.action && (data.action.type === 'OFFER_BLOCK' || data.action.type === 'RECOMMEND_BLOCK')) {
+      actionHtml = `
+        <div style="margin-top: 8px; padding: 8px; background: rgba(244, 63, 94, 0.15); border: 1px solid var(--magenta-rose); border-radius: 6px;">
+          <strong style="color:var(--magenta-rose); font-size:0.75rem;">Action Recommended:</strong>
+          <div style="font-size:0.75rem; margin:2px 0 6px 0;">Block Target: <code>${data.action.target_ip}</code></div>
+          <button class="btn-sentinel btn-sentinel-danger btn-sm" onclick="executeBlockAction('${data.action.target_ip}', '${data.action.reason}')">Enforce Kernel Block</button>
+        </div>
+      `;
+    }
+
+    aiDiv.innerHTML = formatted + actionHtml;
+
+    if (data.provider) {
+      document.getElementById('ai-active-provider').textContent = data.provider.toUpperCase();
+    }
+  } catch (err) {
+    aiDiv.innerHTML = `<span style="color: var(--magenta-rose)">Error: ${err.message}</span>`;
+  }
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+async function executeBlockAction(ip, reason) {
+  if (!confirm(`Confirm kernel firewall block on ${ip}?`)) return;
+  const res = await fetch('/api/firewall/block', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ip: ip, reason: reason, duration_sec: 300})
+  });
+  const data = await res.json();
+  if (data.success) {
+    showNotification(`Firewall blocked ${ip}`, 'info');
+  } else {
+    showNotification(`Block failed: ${data.message}`, 'error');
+  }
+}
+</script>
+{% endblock %}

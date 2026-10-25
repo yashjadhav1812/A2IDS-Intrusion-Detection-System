@@ -1,0 +1,653 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h2 style="font-size: 1.35rem; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+      FIREWALL MANAGER & AUTONOMOUS MITIGATION
+    </h2>
+    <p style="color: var(--text-secondary); font-size: 0.78rem;">Kernel Packet Filter (pfctl) Autonomous Dropping & Multi-Tier Safety Engine</p>
+  </div>
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <!-- Emergency Stop Trigger Button -->
+    <button id="emergency-stop-btn" class="btn-sentinel btn-sentinel-danger btn-sm" onclick="toggleEmergencyStop()" style="display: flex; align-items: center; gap: 6px; font-weight: 800;">
+      <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#ffffff;"></span>
+      EMERGENCY STOP
+    </button>
+    <button class="btn-sentinel btn-sentinel-outline btn-sm" onclick="handleManualRefresh()">Refresh State</button>
+  </div>
+</div>
+
+<!-- Emergency Stop Active Banner (Hidden by default) -->
+<div id="emergency-stop-banner" class="sentinel-card" style="display: none; background: rgba(255, 23, 68, 0.15); border: 1px solid var(--magenta-rose); margin-bottom: 1.25rem;">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span style="font-size: 1.5rem;">⚠️</span>
+      <div>
+        <div style="font-size: 0.95rem; font-weight: 800; color: #ffffff;">EMERGENCY STOP ENGAGED — AUTOMATED FIREWALL PREVENTIONS FROZEN</div>
+        <div style="font-size: 0.78rem; color: #ffcdd2;">All autonomous dropping is halted. Active kernel rules remain frozen or flushed. Inbound packets will not trigger new blocks.</div>
+      </div>
+    </div>
+    <button class="btn-sentinel btn-sentinel-primary btn-sm" onclick="toggleEmergencyStop(false)">Resume Normal Prevention</button>
+  </div>
+</div>
+
+<!-- Kernel Backend Status Banner -->
+<div class="sentinel-card" style="margin-bottom: 1.25rem;">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <div>
+      <div style="font-size: 0.95rem; font-weight:800; color:#ffffff; display:flex; align-items:center; gap:8px;">
+        <span class="pulse-green-dot" id="fw-backend-dot"></span>
+        OS Kernel Backend: <span id="fw-backend-name" style="color:var(--green-emerald);">macOS Packet Filter (PF)</span>
+        <span id="fw-anchor-status" class="sentinel-badge badge-low" style="margin-left: 8px;">ANCHOR: VERIFIED</span>
+      </div>
+      <div id="fw-perm-desc" style="color: var(--text-muted); font-size: 0.78rem; margin-top: 3px;">
+        Kernel drop table loaded. Auto-mitigation evaluates and intercepts incoming attack frames in real time.
+      </div>
+    </div>
+
+    <div>
+      <span class="sentinel-badge badge-success" id="fw-enforce-tag">KERNEL FILTER ACTIVE</span>
+    </div>
+  </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.25rem;">
+  <!-- Manual Block Form -->
+  <div class="sentinel-card">
+    <div class="sentinel-card-header">
+      <span class="sentinel-card-title">Enforce Manual Firewall Block</span>
+      <span class="sentinel-badge badge-critical">IPv4 + IPv6</span>
+    </div>
+    <p style="color:var(--text-muted); font-size:0.75rem; margin-bottom:0.85rem;">
+      Inject a target IPv4 or IPv6 address directly into the kernel packet filter drop table via Safety Controller.
+    </p>
+
+    <div style="margin-bottom: 0.85rem;">
+      <label style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Target IP Address (IPv4 or IPv6)</label>
+      <input type="text" id="block-ip" class="sentinel-input" style="width: 100%;" placeholder="e.g. 198.51.100.45 or 2401:4900:5613:a2c7:d0c3:143f:1193:641a">
+    </div>
+
+    <div style="margin-bottom: 0.85rem;">
+      <label style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Quarantine Duration</label>
+      <select id="block-duration" class="sentinel-select" style="width: 100%;">
+        <option value="300">5 Minutes (Standard Quarantine)</option>
+        <option value="900">15 Minutes</option>
+        <option value="3600">1 Hour</option>
+        <option value="14400">4 Hours</option>
+        <option value="86400">24 Hours</option>
+        <option value="perm">Permanent Block</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom: 1rem;">
+      <label style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Block Reason / Reference</label>
+      <input type="text" id="block-reason" class="sentinel-input" style="width: 100%;" placeholder="Operator manual mitigation (e.g. port scan probe, volumetric burst)">
+    </div>
+
+    <button class="btn-sentinel btn-sentinel-danger" onclick="confirmManualBlock()" style="width: 100%;">
+      Enforce Kernel Block (IPv4 / IPv6)
+    </button>
+  </div>
+
+  <!-- Safety Policy & Categorized Allowlist Card -->
+  <div class="sentinel-card">
+    <div class="sentinel-card-header">
+      <span class="sentinel-card-title">Three-Tier Protected-Address Policy</span>
+      <span class="sentinel-badge badge-success">STRICT SAFETY</span>
+    </div>
+    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.5;">
+      To prevent accidental host lockout or routing severance, the Safety Controller categorizes all IP addresses into three protection tiers:
+    </p>
+
+    <!-- Policy Category Tabs -->
+    <div style="display:flex; gap:6px; margin-bottom:10px; border-bottom:1px solid var(--border-subtle); padding-bottom:6px;">
+      <button id="tab-btn-cat-a" class="btn-sentinel btn-sentinel-primary btn-sm" onclick="switchPolicyTab('cat-a')">Category A (Essential)</button>
+      <button id="tab-btn-cat-b" class="btn-sentinel btn-sentinel-outline btn-sm" onclick="switchPolicyTab('cat-b')">Category B (Operational)</button>
+      <button id="tab-btn-cat-c" class="btn-sentinel btn-sentinel-outline btn-sm" onclick="switchPolicyTab('cat-c')">Category C (Exclusions)</button>
+    </div>
+
+    <!-- Category A Content -->
+    <div id="tab-content-cat-a" style="max-height: 180px; overflow-y: auto;">
+      <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:6px;">
+        <strong>Category A (Essential):</strong> Host loopback (127.0.0.1, ::1) and local interface IPs. Blocks are <em>strictly prohibited</em> under any condition.
+      </div>
+      <div id="cat-a-list" style="display:flex; flex-direction:column; gap:4px;">
+        <!-- Populated via JS -->
+      </div>
+    </div>
+
+    <!-- Category B Content -->
+    <div id="tab-content-cat-b" style="display:none; max-height: 180px; overflow-y: auto;">
+      <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:6px;">
+        <strong>Category B (Operational):</strong> Default gateways and active DNS resolvers. Requires explicit operator confirmation.
+      </div>
+      <div id="cat-b-list" style="display:flex; flex-direction:column; gap:4px;">
+        <!-- Populated via JS -->
+      </div>
+    </div>
+
+    <!-- Category C Content -->
+    <div id="tab-content-cat-c" style="display:none; max-height: 180px; overflow-y: auto;">
+      <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:6px;">
+        <strong>Category C (Configurable):</strong> Operator-configured subnets and endpoints. High/Critical risks can override when policy permits.
+      </div>
+      <!-- Add exclusion form -->
+      <div style="display:flex; gap:6px; margin-bottom:8px;">
+        <input type="text" id="new-exclusion-ip" class="sentinel-input" style="flex:1; font-size:0.72rem;" placeholder="IP or CIDR (e.g. 192.168.1.0/24)">
+        <input type="text" id="new-exclusion-reason" class="sentinel-input" style="flex:1; font-size:0.72rem;" placeholder="Reason">
+        <button class="btn-sentinel btn-sentinel-primary btn-sm" onclick="addExclusionRule()">Add</button>
+      </div>
+      <div id="cat-c-list" style="display:flex; flex-direction:column; gap:4px;">
+        <!-- Populated via JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Active Rules Table -->
+<div class="sentinel-card" style="padding: 0; overflow: hidden; margin-bottom: 1.25rem;">
+  <div style="padding: 0.6rem 1rem; background: rgba(8, 13, 28, 0.9); border-bottom: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <span style="font-size: 0.78rem; font-weight: 800; color: #ffffff;">
+      ACTIVE KERNEL FIREWALL RULES (IPv4 & IPv6)
+    </span>
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+      <span style="font-size:0.68rem; color:var(--text-muted); font-weight:700; white-space:nowrap;">Set expiry for ALL blocks:</span>
+      <select id="bulk-expiry-select" class="sentinel-select" style="font-size:0.7rem; padding:3px 8px; height:26px; min-width:120px;">
+        <option value="300">5 minutes</option>
+        <option value="600">10 minutes</option>
+        <option value="1800">30 minutes</option>
+        <option value="3600">1 hour</option>
+        <option value="21600">6 hours</option>
+        <option value="43200">12 hours</option>
+        <option value="86400">24 hours</option>
+        <option value="perm">Permanent</option>
+      </select>
+      <button class="btn-sentinel btn-sentinel-blue btn-sm" style="height:26px; padding:0 12px; font-size:0.7rem; font-weight:700;" onclick="adjustAllBlockExpiry()" title="Apply selected expiry to ALL currently blocked IPs">Extend All</button>
+      <span id="active-rules-count-badge" class="sentinel-badge badge-success" style="white-space:nowrap;">0 ACTIVE RULES</span>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="sentinel-table">
+      <thead>
+        <tr>
+          <th>Rule ID</th>
+          <th>Target IP Address</th>
+          <th>Mitigation Reason</th>
+          <th>Enforced By</th>
+          <th>Created Time</th>
+          <th>Expires In</th>
+          <th>Kernel State</th>
+          <th style="min-width:240px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="firewall-rules-tbody">
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+            No active firewall blocks currently in place. Network unconstrained.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Rejected Block Requests Table -->
+<div class="sentinel-card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 0.75rem 1rem; background: rgba(8, 13, 28, 0.9); border-bottom: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <span style="font-size: 0.78rem; font-weight: 800; color: #ffffff;">
+        REJECTED BLOCK REQUESTS & SAFETY CONTROLLER AUDIT
+      </span>
+      <span style="font-size:0.72rem; color:var(--text-muted); margin-left:8px;">Transparent audit of protected-address rejections</span>
+    </div>
+    <span id="rejected-count-badge" class="sentinel-badge badge-low">0 REJECTIONS</span>
+  </div>
+  <div class="table-responsive">
+    <table class="sentinel-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Candidate IP</th>
+          <th>Rejection Code</th>
+          <th>Protection Tier</th>
+          <th>Reason & Host Impact</th>
+          <th>Requested By</th>
+        </tr>
+      </thead>
+      <tbody id="rejected-requests-tbody">
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            No rejected block attempts recorded. Safety Controller healthy.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPolicies = null;
+
+async function loadFirewallData() {
+  try {
+    const [statusRes, rulesRes, rejRes, polRes] = await Promise.all([
+      fetch('/api/firewall/status'),
+      fetch('/api/firewall/rules'),
+      fetch('/api/firewall/rejected-requests?limit=25'),
+      fetch('/api/firewall/protection-policy')
+    ]);
+
+    const statusData = await statusRes.json();
+    const rulesData = await rulesRes.json();
+    const rejData = await rejRes.json();
+    const polData = await polRes.json();
+
+    // Backend status
+    const fw = statusData.status || {};
+    document.getElementById('fw-backend-name').textContent = fw.backend || 'macOS Packet Filter (PF)';
+    document.getElementById('fw-perm-desc').textContent = fw.details || '';
+    
+    // Anchor status badge
+    const anchorBadge = document.getElementById('fw-anchor-status');
+    if (fw.anchor_referenced) {
+      anchorBadge.textContent = 'ANCHOR: REFERENCED & DROPPING';
+      anchorBadge.className = 'sentinel-badge badge-success';
+    } else {
+      anchorBadge.textContent = 'ANCHOR: LOADED (PERSIST TABLE)';
+      anchorBadge.className = 'sentinel-badge badge-low';
+    }
+
+    // Emergency Stop
+    const isEmergency = statusData.emergency_stop;
+    const esBanner = document.getElementById('emergency-stop-banner');
+    const esBtn = document.getElementById('emergency-stop-btn');
+    if (isEmergency) {
+      esBanner.style.display = 'block';
+      esBtn.textContent = 'RESUME PREVENTIONS';
+      esBtn.className = 'btn-sentinel btn-sentinel-primary btn-sm';
+    } else {
+      esBanner.style.display = 'none';
+      esBtn.textContent = 'EMERGENCY STOP';
+      esBtn.className = 'btn-sentinel btn-sentinel-danger btn-sm';
+    }
+
+    // Active rules
+    const rules = rulesData.rules || [];
+    document.getElementById('active-rules-count-badge').textContent = `${rules.length} ACTIVE RULES`;
+    renderRulesTable(rules);
+
+    // Rejected blocks
+    const rejections = rejData.rejections || [];
+    document.getElementById('rejected-count-badge').textContent = `${rejections.length} REJECTIONS`;
+    renderRejectionsTable(rejections);
+
+    // Protected address policies
+    if (polData.success && polData.policies) {
+      currentPolicies = polData.policies;
+      renderPolicyLists(polData.policies);
+    }
+
+  } catch (e) {
+    console.error('Error loading firewall data:', e);
+  }
+}
+
+function renderRulesTable(rules) {
+  const tbody = document.getElementById('firewall-rules-tbody');
+  if (!rules || rules.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" style="text-align:center; padding: 2.5rem; color: var(--text-muted);">
+          No active firewall blocks currently in place. Network unconstrained.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  rules.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.className = 'alert-critical';
+
+    let expireDisplay = 'Permanent';
+    if (r.expires_at) {
+      const remainingSec = Math.max(0, Math.floor(r.expires_at - Date.now() / 1000));
+      const m = Math.floor(remainingSec / 60);
+      const s = remainingSec % 60;
+      expireDisplay = `${m}m ${s}s`;
+    }
+
+    const isAuto = Boolean(
+      r.alert_id != null ||
+      (r.operator && (r.operator.toUpperCase().includes('AUTO') || r.operator.toUpperCase().includes('PREVENTION'))) ||
+      (r.reason && (r.reason.toLowerCase().includes('auto') || r.reason.toLowerCase().includes('mode 3')))
+    );
+
+    tr.innerHTML = `
+      <td style="color:var(--text-muted); font-size:0.72rem; font-family:var(--font-mono);">#${r.id}</td>
+      <td><code style="color:var(--blue-light); font-size:0.82rem; font-weight:700;">${r.ip_address}</code></td>
+      <td style="color:#ffffff;">${r.reason || 'Security Policy Block'}</td>
+      <td>
+        <span class="sentinel-badge ${isAuto ? 'badge-critical' : 'badge-slate'}">
+          ${isAuto ? 'AUTONOMOUS (MODE 3)' : 'MANUAL'}
+        </span>
+      </td>
+      <td style="color:var(--text-muted); font-size:0.72rem; font-family:var(--font-mono);">${r.created_at ? new Date(r.created_at * 1000).toLocaleTimeString() : ''}</td>
+      <td style="color:var(--purple-accent); font-weight:700; font-family:var(--font-mono);">${expireDisplay}</td>
+      <td><span class="sentinel-badge badge-success">${r.verified_state || 'VERIFIED'}</span></td>
+      <td>
+        <button class="btn-sentinel btn-sentinel-outline btn-sm" onclick="unblockRuleIp('${r.ip_address}')">
+          Unblock
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderRejectionsTable(rejections) {
+  const tbody = document.getElementById('rejected-requests-tbody');
+  if (!rejections || rejections.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-muted);">
+          No rejected block attempts recorded. Safety Controller healthy.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  rejections.forEach(rej => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--text-muted); font-size:0.72rem; font-family:var(--font-mono);">${rej.datetime_str || ''}</td>
+      <td><code style="color:var(--magenta-rose); font-weight:700; font-size:0.8rem;">${rej.ip_address}</code></td>
+      <td><span class="sentinel-badge badge-critical">${rej.reason_code}</span></td>
+      <td><span class="sentinel-badge badge-low">${rej.category}</span></td>
+      <td style="color:#ffffff; font-size:0.75rem;">${rej.details}</td>
+      <td style="color:var(--text-secondary); font-size:0.72rem;">${rej.requested_by}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderPolicyLists(policies) {
+  // Category A
+  const catA = policies.category_a || [];
+  const elA = document.getElementById('cat-a-list');
+  elA.innerHTML = catA.map(item => `
+    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card-inner); padding:4px 8px; border-radius:4px; font-size:0.72rem;">
+      <span style="font-family:var(--font-mono); color:var(--blue-light);">${item.address}</span>
+      <span style="color:var(--text-muted);">${item.type}</span>
+      <span class="sentinel-badge badge-slate">NEVER BLOCKED</span>
+    </div>
+  `).join('');
+
+  // Category B
+  const catB = policies.category_b || [];
+  const elB = document.getElementById('cat-b-list');
+  if (catB.length === 0) {
+    elB.innerHTML = '<span style="color:var(--text-muted); font-size:0.72rem;">No operational gateways or DNS actively configured.</span>';
+  } else {
+    elB.innerHTML = catB.map(item => `
+      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card-inner); padding:4px 8px; border-radius:4px; font-size:0.72rem;">
+        <span style="font-family:var(--font-mono); color:var(--purple-accent);">${item.address}</span>
+        <span style="color:var(--text-muted);">${item.type}</span>
+        <span class="sentinel-badge badge-low">REQUIRES APPROVAL</span>
+      </div>
+    `).join('');
+  }
+
+  // Category C
+  const catC = policies.category_c || [];
+  const elC = document.getElementById('cat-c-list');
+  if (catC.length === 0) {
+    elC.innerHTML = '<span style="color:var(--text-muted); font-size:0.72rem;">No custom exclusions configured.</span>';
+  } else {
+    elC.innerHTML = catC.map(item => `
+      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card-inner); padding:4px 8px; border-radius:4px; font-size:0.72rem;">
+        <div>
+          <span style="font-family:var(--font-mono); color:var(--green-emerald);">${item.address}</span>
+          <span style="color:var(--text-muted); margin-left:6px;">(${item.reason})</span>
+        </div>
+        <button class="btn-sentinel btn-sentinel-danger btn-sm" style="padding:2px 6px; font-size:0.65rem;" onclick="removeExclusionRule('${item.address}')">Remove</button>
+      </div>
+    `).join('');
+  }
+}
+
+function switchPolicyTab(tab) {
+  document.getElementById('tab-content-cat-a').style.display = tab === 'cat-a' ? 'block' : 'none';
+  document.getElementById('tab-content-cat-b').style.display = tab === 'cat-b' ? 'block' : 'none';
+  document.getElementById('tab-content-cat-c').style.display = tab === 'cat-c' ? 'block' : 'none';
+
+  document.getElementById('tab-btn-cat-a').className = tab === 'cat-a' ? 'btn-sentinel btn-sentinel-primary btn-sm' : 'btn-sentinel btn-sentinel-outline btn-sm';
+  document.getElementById('tab-btn-cat-b').className = tab === 'cat-b' ? 'btn-sentinel btn-sentinel-primary btn-sm' : 'btn-sentinel btn-sentinel-outline btn-sm';
+  document.getElementById('tab-btn-cat-c').className = tab === 'cat-c' ? 'btn-sentinel btn-sentinel-primary btn-sm' : 'btn-sentinel btn-sentinel-outline btn-sm';
+}
+
+async function addExclusionRule() {
+  const ip = document.getElementById('new-exclusion-ip').value.trim();
+  const reason = document.getElementById('new-exclusion-reason').value.trim() || 'Operator configured exclusion';
+  if (!ip) {
+    showNotification('Please enter an IP address or CIDR subnet', 'error');
+    return;
+  }
+  try {
+    const res = await fetch('/api/firewall/protection-policy', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({cidr_or_ip: ip, reason: reason})
+    });
+    const data = await res.json();
+    if (data.success) {
+      showNotification(`Added exclusion for ${ip}`);
+      document.getElementById('new-exclusion-ip').value = '';
+      document.getElementById('new-exclusion-reason').value = '';
+      loadFirewallData();
+    } else {
+      showNotification(`Error: ${data.message}`, 'error');
+    }
+  } catch (e) {
+    showNotification(`Error: ${e.message}`, 'error');
+  }
+}
+
+async function removeExclusionRule(ip) {
+  if (!confirm(`Remove exclusion for ${ip}?`)) return;
+  try {
+    const res = await fetch('/api/firewall/protection-policy', {
+      method: 'DELETE',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({cidr_or_ip: ip})
+    });
+    const data = await res.json();
+    if (data.success) {
+      showNotification(`Removed exclusion for ${ip}`);
+      loadFirewallData();
+    } else {
+      showNotification(`Error: ${data.message}`, 'error');
+    }
+  } catch (e) {
+    showNotification(`Error: ${e.message}`, 'error');
+  }
+}
+
+async function toggleEmergencyStop(activate = null) {
+  const isCurrentlyActive = document.getElementById('emergency-stop-banner').style.display !== 'none';
+  const shouldActivate = (activate !== null) ? activate : !isCurrentlyActive;
+
+  const promptMsg = shouldActivate
+    ? "Are you sure you want to trigger EMERGENCY STOP? All automated firewall drops will be FROZEN immediately."
+    : "Resume normal preventive firewall operations?";
+
+  if (!confirm(promptMsg)) return;
+
+  try {
+    const res = await fetch('/api/firewall/emergency-stop', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        action: shouldActivate ? 'activate' : 'resume',
+        flush: true
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showNotification(shouldActivate ? 'Emergency stop ACTIVATED.' : 'Preventive operations RESUMED.');
+      loadFirewallData();
+    }
+  } catch (e) {
+    showNotification(`Error: ${e.message}`, 'error');
+  }
+}
+
+async function handleManualRefresh() {
+  showNotification('Refreshing firewall state...', 'info');
+  await loadFirewallData();
+  showNotification('Firewall state refreshed successfully', 'info');
+}
+
+async function confirmManualBlock() {
+  const ip = document.getElementById('block-ip').value.trim();
+  const durVal = document.getElementById('block-duration').value;
+  const reason = document.getElementById('block-reason').value.trim() || 'Operator manual block';
+
+  if (!ip) {
+    showNotification('Please enter an IPv4 or IPv6 address', 'error');
+    return;
+  }
+
+  const isPerm = durVal === 'perm';
+  const durSec = isPerm ? null : parseInt(durVal, 10);
+
+  if (!confirm(`Confirm kernel firewall drop rule for ${ip}?`)) return;
+
+  try {
+    const res = await fetch('/api/firewall/block', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        ip: ip,
+        reason: reason,
+        duration_sec: durSec,
+        is_permanent: isPerm
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showNotification(`Successfully blocked ${ip} (${data.verified_state || 'VERIFIED'})`);
+      document.getElementById('block-ip').value = '';
+      loadFirewallData();
+    } else {
+      showNotification(`Block failed: ${data.message}`, 'error');
+      loadFirewallData();
+    }
+  } catch (e) {
+    showNotification(`Error: ${e.message}`, 'error');
+  }
+}
+
+async function unblockRuleIp(ip) {
+  if (!confirm(`Remove all firewall blocks for ${ip}? The IP will be immediately unblocked.`)) return;
+  try {
+    const res = await fetch('/api/firewall/unblock', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ip: ip, reason: 'Operator manual unblock'})
+    });
+    const data = await res.json();
+    if (data.success) {
+      showNotification(`✓ ${ip} unblocked — kernel rule removed.`, 'info');
+      loadFirewallData();
+    } else {
+      showNotification(`Unblock failed: ${data.message}`, 'error');
+    }
+  } catch (e) {
+    showNotification(`Error: ${e.message}`, 'error');
+  }
+}
+
+// Bulk: apply new expiry to ALL currently blocked IPs
+async function adjustAllBlockExpiry() {
+  const sel = document.getElementById('bulk-expiry-select');
+  const durVal = sel ? sel.value : '3600';
+  const isPerm = durVal === 'perm';
+  const durSec = isPerm ? null : parseInt(durVal, 10);
+  const durLabels = {'300':'5 minutes','600':'10 minutes','1800':'30 minutes','3600':'1 hour','21600':'6 hours','43200':'12 hours','86400':'24 hours'};
+  const durLabel = isPerm ? 'Permanent' : (durLabels[String(durVal)] || `${Math.round(durSec/60)}m`);
+
+  // Collect all active blocked IPs from the rendered table
+  const rows = document.querySelectorAll('#firewall-rules-tbody tr');
+  const blockedIps = [];
+  rows.forEach(row => {
+    const codeEl = row.querySelector('code');
+    if (codeEl && codeEl.textContent.trim()) {
+      blockedIps.push(codeEl.textContent.trim());
+    }
+  });
+
+  if (blockedIps.length === 0) {
+    showNotification('No active blocked IPs to update.', 'error');
+    return;
+  }
+
+  if (!confirm(`Apply expiry "${isPerm ? 'PERMANENT' : durLabel}" to ALL ${blockedIps.length} blocked IP(s)?\n\nIPs: ${blockedIps.join(', ')}`)) return;
+
+  showNotification(`Updating expiry for ${blockedIps.length} IP(s) to ${isPerm ? 'Permanent' : durLabel}...`, 'info');
+
+  let successCount = 0;
+  for (const ip of blockedIps) {
+    try {
+      // Unblock then re-block with new duration
+      await fetch('/api/firewall/unblock', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ip, reason: 'Bulk expiry adjustment'})
+      });
+      const res = await fetch('/api/firewall/block', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          ip,
+          reason: `Bulk adjusted block (expiry: ${isPerm ? 'permanent' : durLabel})`,
+          duration_sec: durSec,
+          is_permanent: isPerm
+        })
+      });
+      const data = await res.json();
+      if (data.success) successCount++;
+    } catch (e) {
+      console.error('Error adjusting expiry for', ip, e);
+    }
+  }
+
+  showNotification(`✓ Updated ${successCount}/${blockedIps.length} blocks to expire in ${isPerm ? 'NEVER (Permanent)' : durLabel}.`, 'info');
+  loadFirewallData();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadFirewallData();
+  setInterval(loadFirewallData, 4000);
+
+  // Real-time instant firewall table update via SSE stream
+  try {
+    const fwStream = new EventSource('/api/stream');
+    fwStream.onmessage = (e) => {
+      try {
+        const ev = JSON.parse(e.data);
+        if (ev.type === 'auto_block' || ev.type === 'firewall_update') {
+          loadFirewallData();
+        }
+      } catch (err) {}
+    };
+  } catch (streamErr) {}
+});
+</script>
+{% endblock %}

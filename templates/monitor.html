@@ -1,0 +1,593 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Top Header Area -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h2 style="font-size: 1.35rem; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+      LIVE PACKET MONITOR & DEEP INSPECTOR
+    </h2>
+    <p style="color: var(--text-secondary); font-size: 0.78rem;">Kernel BPF Frame Ingestion, Real-Time Flow Decoding & Protocol Forensics</p>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <button id="toggle-autoscroll-btn" class="btn-sentinel btn-sentinel-outline btn-sm" onclick="toggleAutoScroll()">Auto-Scroll: ON</button>
+    <button class="btn-sentinel btn-sentinel-outline btn-sm" onclick="handleMonitorRefresh()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:3px;"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Refresh
+    </button>
+    <button class="btn-sentinel btn-sentinel-outline btn-sm" onclick="clearPacketsUI()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      Clear Buffer
+    </button>
+    <button class="btn-sentinel btn-sentinel-green btn-sm" onclick="downloadPackets()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download CSV
+    </button>
+    <button class="btn-sentinel btn-sentinel-blue btn-sm" onclick="exportPcap()">
+      Export PCAP
+    </button>
+  </div>
+</div>
+
+<!-- Capture Control Bar -->
+<div class="sentinel-card" style="margin-bottom: 1.25rem;">
+  <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 180px;">
+      <label style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 4px;">Network Interface</label>
+      <select id="mon-iface-select" class="sentinel-select" style="width: 100%;"></select>
+    </div>
+    <div style="flex: 2; min-width: 220px;">
+      <label style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 4px;">BPF Capture Filter (e.g. "tcp or udp port 53")</label>
+      <input type="text" id="mon-bpf-input" class="sentinel-input" style="width: 100%;" placeholder="Leave empty for all network traffic">
+    </div>
+
+    <!-- 3 Action Buttons -->
+    <div style="display: flex; gap: 8px; align-items: flex-end; padding-top: 1rem; flex-wrap: wrap;">
+      <!-- 1. Start Button -->
+      <button id="mon-start-btn" class="btn-sentinel btn-sentinel-green" onclick="startCapture()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Start
+      </button>
+      <!-- 2. Pause Button -->
+      <button id="mon-pause-btn" class="btn-sentinel btn-sentinel-blue" onclick="togglePause()" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        Pause
+      </button>
+      <!-- 3. Stop Button -->
+      <button id="mon-stop-btn" class="btn-sentinel btn-sentinel-danger" onclick="stopCapture()" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16"/></svg>
+        Stop
+      </button>
+    </div>
+  </div>
+
+  <!-- Telemetry Row (Querytel Sentinel KPI Style) -->
+  <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle);">
+    <div>
+      <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Status</div>
+      <div id="cap-status-val" style="font-size: 1.15rem; font-weight: 800; color: var(--magenta-rose); font-family: var(--font-mono);">STOPPED</div>
+    </div>
+    <div>
+      <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Throughput</div>
+      <div id="cap-rate-val" style="font-size: 1.15rem; font-weight: 800; color: var(--green-emerald); font-family: var(--font-mono);">0 pps</div>
+    </div>
+    <div>
+      <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Normal Traffic</div>
+      <div id="cap-normal-val" style="font-size: 1.15rem; font-weight: 800; color: #ffffff; font-family: var(--font-mono);">0</div>
+    </div>
+    <div>
+      <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Threats Flagged</div>
+      <div id="cap-threat-val" style="font-size: 1.15rem; font-weight: 800; color: var(--magenta-rose); font-family: var(--font-mono);">0</div>
+    </div>
+    <div>
+      <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Blocked Packets</div>
+      <div id="cap-blocked-val" style="font-size: 1.15rem; font-weight: 800; color: var(--blue-light); font-family: var(--font-mono);">0</div>
+    </div>
+    <div>
+      <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Total Buffer</div>
+      <div id="cap-total-val" style="font-size: 1.15rem; font-weight: 800; color: var(--cyan-accent); font-family: var(--font-mono);">0 pkts</div>
+    </div>
+  </div>
+</div>
+
+<!-- Persistent Packet Data Table -->
+<div class="sentinel-card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 0.75rem 1rem; background: rgba(8, 13, 28, 0.9); border-bottom: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+    <span style="font-size: 0.76rem; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;">
+      STREAM BUFFER • PERSISTENT SESSION MEMORY
+    </span>
+    <span id="packet-buffer-counter" style="color: var(--cyan-accent); font-size: 0.72rem; font-family: var(--font-mono);">
+      0 frames retained
+    </span>
+  </div>
+  <div class="table-responsive" style="max-height: 580px; overflow-y: auto;" id="packet-table-container">
+    <table class="sentinel-table">
+      <thead>
+        <tr>
+          <th style="width: 50px;">#</th>
+          <th style="width: 85px;">Time</th>
+          <th>Source IP</th>
+          <th style="width: 60px;">SPort</th>
+          <th>Destination IP</th>
+          <th style="width: 60px;">DPort</th>
+          <th style="width: 80px;">Protocol</th>
+          <th style="width: 70px;">Length</th>
+          <th style="width: 90px;">Flags</th>
+          <th style="width: 85px;">Status</th>
+        </tr>
+      </thead>
+      <tbody id="packet-table-body">
+        <tr>
+          <td colspan="10" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+            No packets in buffer. Click <strong>Start</strong> above to capture live network frames.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let autoScroll = true;
+let eventSource = null;
+let packetCount = 0;
+let normalCount = 0;
+let threatCount = 0;
+let blockedCount = 0;
+
+const STORAGE_KEY = 'A2IDS_PERSISTENT_PACKETS';
+let memoryPacketBuffer = [];
+
+async function handleMonitorRefresh() {
+  try {
+    showNotification('Re-synchronizing sniffer telemetry & packet stream...', 'info');
+    await Promise.all([syncCaptureStatus(), loadInterfaces(), loadRecentPacketsFromAPI()]);
+    updateTelemetryHUD();
+    showNotification('Sniffer telemetry & live stream successfully synchronized', 'info');
+  } catch (err) {
+    showNotification(`Refresh error: ${err.message}`, 'error');
+  }
+}
+
+function toggleAutoScroll() {
+  autoScroll = !autoScroll;
+  document.getElementById('toggle-autoscroll-btn').textContent = `Auto-Scroll: ${autoScroll ? 'ON' : 'OFF'}`;
+}
+
+function downloadPackets() {
+  if (memoryPacketBuffer && memoryPacketBuffer.length > 0) {
+    showNotification(`Exporting ${memoryPacketBuffer.length.toLocaleString()} buffered packets to CSV...`, 'info');
+    const headers = ["ID", "Time", "SourceIP", "SourcePort", "DestinationIP", "DestinationPort", "Protocol", "Length", "Flags", "Status"];
+    const rows = memoryPacketBuffer.map(p => [
+      p.count || '',
+      `"${p.time || ''}"`,
+      `"${p.src_ip || ''}"`,
+      p.src_port || '',
+      `"${p.dst_ip || ''}"`,
+      p.dst_port || '',
+      `"${p.proto || ''}"`,
+      p.length || 0,
+      `"${p.flags || ''}"`,
+      `"${p.status || 'NORMAL'}"`
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `a2ids_packets_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showNotification(`Downloaded ${memoryPacketBuffer.length.toLocaleString()} packets successfully`, 'info');
+  } else {
+    showNotification('Downloading packet capture CSV from server...');
+    window.location.href = '/api/export/packets';
+  }
+}
+
+async function exportPcap() {
+  try {
+    const res = await fetch('/api/capture/export', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({filename: `a2ids_${Date.now()}.pcap`})
+    });
+    const data = await res.json();
+    if (data.success) {
+      showNotification(`PCAP saved: ${data.filepath}`, 'info');
+    } else {
+      showNotification(`Export failed: ${data.message}`, 'error');
+    }
+  } catch (e) {
+    showNotification(`PCAP export error: ${e.message}`, 'error');
+  }
+}
+
+
+async function clearPacketsUI() {
+  if (!confirm('Clear all displayed and buffered frames?')) return;
+  memoryPacketBuffer = [];
+  sessionStorage.removeItem(STORAGE_KEY);
+  packetCount = 0;
+  normalCount = 0;
+  threatCount = 0;
+  blockedCount = 0;
+  updateTelemetryHUD();
+
+  const tbody = document.getElementById('packet-table-body');
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="10" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+        Packet buffer cleared. Ready for stream.
+      </td>
+    </tr>
+  `;
+  document.getElementById('packet-buffer-counter').textContent = '0 frames retained';
+
+  try {
+    await fetch('/api/capture/clear', {method: 'POST'});
+    showNotification('Buffer cleared');
+  } catch (e) {}
+}
+
+function restoreSavedPackets() {
+  const saved = sessionStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        memoryPacketBuffer = parsed;
+        const tbody = document.getElementById('packet-table-body');
+        tbody.innerHTML = '';
+        parsed.forEach(pkt => appendPacketRow(pkt, false));
+        packetCount = parsed.length;
+        document.getElementById('packet-buffer-counter').textContent = `${parsed.length} frames retained in buffer`;
+        updateTelemetryHUD();
+      }
+    } catch (e) {
+      console.error('Error parsing stored packets:', e);
+    }
+  }
+  if (memoryPacketBuffer.length === 0) {
+    loadRecentPacketsFromAPI();
+  }
+}
+
+async function loadRecentPacketsFromAPI() {
+  try {
+    const res = await fetch('/api/packets?limit=100');
+    const data = await res.json();
+    if (data.packets && data.packets.length > 0) {
+      const tbody = document.getElementById('packet-table-body');
+      tbody.innerHTML = '';
+      data.packets.forEach(p => {
+        const pkt = {
+          count: p.id,
+          time: (p.datetime_str || '').split(' ')[1] || p.datetime_str,
+          src_ip: p.src_ip,
+          src_port: p.src_port || '-',
+          dst_ip: p.dst_ip,
+          dst_port: p.dst_port || '-',
+          proto: p.protocol,
+          length: p.length,
+          flags: p.tcp_flags || '-',
+          status: p.detection_status || 'NORMAL'
+        };
+        appendPacketRow(pkt, true);
+      });
+    }
+  } catch (e) {
+    console.error('Error loading API packets:', e);
+  }
+}
+
+function appendPacketRow(pkt, saveToStorage = true) {
+  const tbody = document.getElementById('packet-table-body');
+  if (tbody.rows.length === 1 && tbody.rows[0].cells.length === 1) {
+    tbody.innerHTML = '';
+  }
+
+  const tr = document.createElement('tr');
+  const isThreat = pkt.status === 'THREAT';
+  const isBlocked = pkt.status === 'BLOCKED';
+
+  let protoColor = 'badge-low';
+  if (pkt.proto === 'TCP') protoColor = 'badge-low';
+  else if (pkt.proto === 'UDP') protoColor = 'badge-medium';
+  else if (pkt.proto === 'DNS') protoColor = 'badge-high';
+  else if (pkt.proto === 'ICMP') protoColor = 'badge-critical';
+
+  tr.innerHTML = `
+    <td style="color:var(--text-muted); font-size:0.72rem; font-family:var(--font-mono);">${pkt.count || packetCount}</td>
+    <td style="color:var(--text-muted); font-size:0.72rem; font-family:var(--font-mono);">${pkt.time || ''}</td>
+    <td><code style="color:var(--blue-light); font-size:0.8rem;">${pkt.src_ip}</code></td>
+    <td style="color:var(--text-muted); font-size:0.75rem; font-family:var(--font-mono);">${pkt.src_port || '-'}</td>
+    <td><code style="color:#ffffff; font-size:0.8rem;">${pkt.dst_ip}</code></td>
+    <td style="color:var(--text-muted); font-size:0.75rem; font-family:var(--font-mono);">${pkt.dst_port || '-'}</td>
+    <td><span class="sentinel-badge ${protoColor}">${pkt.proto || 'ETH'}</span></td>
+    <td style="color:var(--text-muted); font-family:var(--font-mono); font-size:0.75rem;">${pkt.length || 0}</td>
+    <td style="color:var(--text-muted); font-size:0.72rem; font-family:var(--font-mono);">${pkt.flags || '-'}</td>
+    <td>
+      <span class="sentinel-badge ${isBlocked ? 'badge-critical' : isThreat ? 'badge-high' : 'badge-success'}">
+        ${pkt.status || 'NORMAL'}
+      </span>
+    </td>
+  `;
+
+  tbody.appendChild(tr);
+
+  if (isThreat) threatCount++;
+  else if (isBlocked) blockedCount++;
+  else normalCount++;
+
+  if (saveToStorage) {
+    memoryPacketBuffer.push(pkt);
+    const MAX_BUFFER = 10000;
+    if (memoryPacketBuffer.length > MAX_BUFFER) {
+      memoryPacketBuffer.shift();
+    }
+    // Keep visible DOM rows bounded to latest 250 for high performance
+    if (tbody.rows.length > 250) {
+      tbody.deleteRow(0);
+    }
+    // Persist small slice or memory count
+    try {
+      if (memoryPacketBuffer.length <= 1000) {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(memoryPacketBuffer));
+      }
+    } catch (e) {}
+    document.getElementById('packet-buffer-counter').textContent = `${memoryPacketBuffer.length.toLocaleString()} / 10,000 frames retained in buffer`;
+  }
+
+  if (autoScroll) {
+    const container = document.getElementById('packet-table-container');
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
+function updateTelemetryHUD() {
+  document.getElementById('cap-normal-val').textContent = normalCount.toLocaleString();
+  document.getElementById('cap-threat-val').textContent = threatCount.toLocaleString();
+  document.getElementById('cap-blocked-val').textContent = blockedCount.toLocaleString();
+  document.getElementById('cap-total-val').textContent = `${(memoryPacketBuffer.length || packetCount).toLocaleString()} pkts`;
+}
+
+async function loadInterfaces() {
+  try {
+    const res = await fetch('/api/interfaces');
+    const data = await res.json();
+    const select = document.getElementById('mon-iface-select');
+    select.innerHTML = '';
+    
+    const rawIfaces = data.interfaces || [];
+    // Ensure en0 is in list, placing en0 strictly first
+    const hasEn0 = rawIfaces.some(i => i.name === 'en0');
+    let ifaces = [...rawIfaces];
+    if (!hasEn0) {
+      ifaces.unshift({name: 'en0', type: 'Wi-Fi (Primary)', is_up: true, ipv4: []});
+    }
+    ifaces.sort((a, b) => (a.name === 'en0' ? -1 : b.name === 'en0' ? 1 : 0));
+    
+    ifaces.forEach(i => {
+      const opt = document.createElement('option');
+      opt.value = i.name;
+      let ipDisplay = '';
+      if (i.ipv4 && i.ipv4.length > 0) {
+        const addr = i.ipv4[0].address || i.ipv4[0];
+        if (addr) ipDisplay = ` (${addr})`;
+      }
+      if (i.name === 'en0') {
+        opt.textContent = `en0 [Wi-Fi (Primary)] (Recommended)${ipDisplay}`;
+        opt.selected = true;
+      } else {
+        opt.textContent = `${i.name} [${i.type}]${ipDisplay}`;
+      }
+      select.appendChild(opt);
+    });
+    select.value = 'en0';
+  } catch (e) {
+    console.error('Error loading interfaces:', e);
+  }
+}
+
+async function syncCaptureStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    const sniffer = data.sniffer || {};
+
+    const startBtn = document.getElementById('mon-start-btn');
+    const pauseBtn = document.getElementById('mon-pause-btn');
+    const stopBtn = document.getElementById('mon-stop-btn');
+    const statusVal = document.getElementById('cap-status-val');
+    const rateVal = document.getElementById('cap-rate-val');
+
+    rateVal.textContent = `${sniffer.packets_per_sec || 0} pps`;
+
+    if (sniffer.is_running) {
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      pauseBtn.disabled = false;
+
+      if (sniffer.is_paused) {
+        statusVal.textContent = 'PAUSED';
+        statusVal.style.color = 'var(--amber-warn)';
+        pauseBtn.textContent = 'Resume';
+      } else {
+        statusVal.textContent = 'CAPTURING';
+        statusVal.style.color = 'var(--green-emerald)';
+        pauseBtn.textContent = 'Pause';
+        startSSE();
+      }
+    } else {
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      pauseBtn.disabled = true;
+      statusVal.textContent = 'STOPPED';
+      statusVal.style.color = 'var(--magenta-rose)';
+      stopSSE();
+    }
+  } catch (e) {
+    console.error('Error syncing capture status:', e);
+  }
+}
+
+// Quick action Start with instantaneous UI feedback
+async function startCapture() {
+  const iface = document.getElementById('mon-iface-select').value || 'en0';
+  const bpf = document.getElementById('mon-bpf-input').value.trim();
+  const startBtn = document.getElementById('mon-start-btn');
+  const pauseBtn = document.getElementById('mon-pause-btn');
+  const stopBtn = document.getElementById('mon-stop-btn');
+  const statusVal = document.getElementById('cap-status-val');
+
+  // Optimistic instantaneous UI update
+  startBtn.disabled = true;
+  pauseBtn.disabled = false;
+  stopBtn.disabled = false;
+  pauseBtn.textContent = 'Pause';
+  statusVal.textContent = 'CAPTURING';
+  statusVal.style.color = 'var(--green-emerald)';
+  startSSE();
+  showNotification(`Capture initiated on ${iface}...`, 'info');
+
+  try {
+    const res = await fetch('/api/capture/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({interface: iface, bpf_filter: bpf})
+    });
+    const data = await res.json();
+    if (data.success) {
+      showNotification(`Capture actively listening on ${iface}`, 'info');
+      syncCaptureStatus();
+    } else {
+      showNotification(data.message || 'Failed to start capture', 'error');
+      syncCaptureStatus();
+    }
+  } catch (e) {
+    showNotification(`Start capture error: ${e.message}`, 'error');
+    syncCaptureStatus();
+  }
+}
+
+// Quick action Pause/Resume with instantaneous UI feedback
+async function togglePause() {
+  const btn = document.getElementById('mon-pause-btn');
+  const statusVal = document.getElementById('cap-status-val');
+  const isPausing = btn.textContent.trim().toLowerCase() === 'pause';
+  const action = isPausing ? 'pause' : 'resume';
+
+  // Optimistic instantaneous UI update
+  btn.textContent = isPausing ? 'Resume' : 'Pause';
+  statusVal.textContent = isPausing ? 'PAUSED' : 'CAPTURING';
+  statusVal.style.color = isPausing ? 'var(--amber-warn)' : 'var(--green-emerald)';
+  showNotification(isPausing ? 'Capture paused' : 'Capture resumed', 'info');
+
+  try {
+    const res = await fetch(`/api/capture/${action}`, {method: 'POST'});
+    const data = await res.json();
+    if (data.success) {
+      syncCaptureStatus();
+    } else {
+      showNotification(data.message || `Failed to ${action} capture`, 'error');
+      syncCaptureStatus();
+    }
+  } catch (e) {
+    showNotification(`Error: ${e.message}`, 'error');
+    syncCaptureStatus();
+  }
+}
+
+// Quick action Stop with instantaneous UI feedback
+async function stopCapture() {
+  const startBtn = document.getElementById('mon-start-btn');
+  const pauseBtn = document.getElementById('mon-pause-btn');
+  const stopBtn = document.getElementById('mon-stop-btn');
+  const statusVal = document.getElementById('cap-status-val');
+
+  // Optimistic instantaneous UI update
+  startBtn.disabled = false;
+  pauseBtn.disabled = true;
+  stopBtn.disabled = true;
+  statusVal.textContent = 'STOPPED';
+  statusVal.style.color = 'var(--magenta-rose)';
+  stopSSE();
+  showNotification('Capture stopped', 'info');
+
+  try {
+    const res = await fetch('/api/capture/stop', {method: 'POST'});
+    const data = await res.json();
+    if (data.success) {
+      syncCaptureStatus();
+    } else {
+      showNotification(data.message || 'Failed to stop capture', 'error');
+      syncCaptureStatus();
+    }
+  } catch (e) {
+    showNotification(`Error: ${e.message}`, 'error');
+    syncCaptureStatus();
+  }
+}
+
+function startSSE() {
+  if (eventSource) return;
+  eventSource = new EventSource('/api/stream');
+
+  eventSource.onmessage = (e) => {
+    try {
+      const event = JSON.parse(e.data);
+      if (event.type === 'packet') {
+        const p = event.data;
+        packetCount++;
+        const pkt = {
+          count: packetCount,
+          time: new Date().toTimeString().split(' ')[0],
+          src_ip: p.src_ip,
+          src_port: p.src_port || '-',
+          dst_ip: p.dst_ip,
+          dst_port: p.dst_port || '-',
+          proto: p.protocol,
+          length: p.length,
+          flags: p.tcp_flags || '-',
+          status: p.detection_status || 'NORMAL'
+        };
+        appendPacketRow(pkt, true);
+        updateTelemetryHUD();
+      } else if (event.type === 'alert') {
+        threatCount++;
+        updateTelemetryHUD();
+      } else if (event.type === 'auto_block') {
+        blockedCount++;
+        updateTelemetryHUD();
+        showNotification(`KERNEL BLOCK ENFORCED: ${event.data.ip}`, 'info');
+      }
+    } catch (err) {
+      console.error('SSE parse error:', err);
+    }
+  };
+
+  eventSource.onerror = () => {
+    stopSSE();
+  };
+}
+
+function stopSSE() {
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadInterfaces();
+  restoreSavedPackets();
+  syncCaptureStatus();
+  setInterval(syncCaptureStatus, 4000);
+});
+</script>
+{% endblock %}

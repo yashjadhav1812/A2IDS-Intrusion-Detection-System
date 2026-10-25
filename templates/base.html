@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A2IDS</title>
+  <link rel="icon" type="image/jpeg" href="/static/img/a2ids_logo.jpg">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="sentinel-shell">
+    
+    <!-- Left Icon Rail (Querytel Sentinel Theme) -->
+    <aside class="sentinel-rail">
+      <!-- A2IDS Official Logo at Top -->
+      <a href="/" class="rail-brand-logo" title="A2IDS Home" style="padding:0; overflow:hidden; border: 1px solid rgba(0, 210, 255, 0.4);">
+        <img src="/static/img/a2ids_logo.jpg" alt="A2IDS Logo" style="width:100%; height:100%; object-fit:cover;">
+      </a>
+
+      <!-- Icon Navigation Links -->
+      <ul class="rail-nav-items">
+        <li>
+          <a href="/" class="rail-link {% if request.path == '/' %}active{% endif %}" data-tooltip="Operations Overview">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          </a>
+        </li>
+        <li>
+          <a href="/monitor" class="rail-link {% if request.path == '/monitor' %}active{% endif %}" data-tooltip="Live Packet Sniffer">
+            <svg viewBox="0 0 24 24" fill="none"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </a>
+        </li>
+        <li>
+          <a href="/alerts" class="rail-link {% if request.path == '/alerts' %}active{% endif %}" data-tooltip="Threats Detected">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </a>
+        </li>
+        <li>
+          <a href="/analysis" class="rail-link {% if request.path == '/analysis' or request.path == '/flows' %}active{% endif %}" data-tooltip="Deep Analytics">
+            <svg viewBox="0 0 24 24" fill="none"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </a>
+        </li>
+        <li>
+          <a href="/firewall" class="rail-link {% if request.path == '/firewall' %}active{% endif %}" data-tooltip="Firewall & Defense">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </a>
+        </li>
+        <li>
+          <a href="/reports" class="rail-link {% if request.path == '/reports' %}active{% endif %}" data-tooltip="Audits & Logs">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+          </a>
+        </li>
+        <li>
+          <a href="/settings" class="rail-link {% if request.path == '/settings' %}active{% endif %}" data-tooltip="System Settings">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </a>
+        </li>
+      </ul>
+    </aside>
+
+    <!-- Main Sentinel Workspace -->
+    <div class="sentinel-main-wrap">
+      
+      <!-- Topbar Header -->
+      <header class="sentinel-topbar">
+        <div class="topbar-left">
+          <!-- Brand Title (Logo removed from horizontal nav per specification) -->
+          <a href="/" style="display:flex; align-items:center; text-decoration:none;">
+            <div style="display:flex; flex-direction:column;">
+              <div class="sentinel-title">
+                A2IDS
+              </div>
+              <div class="sentinel-subtitle">
+                DETECT • ANALYZE • DEFEND • AI-POWERED INTRUSION DETECTION
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Topbar Right (Nav Links, Quick Copilot, Clock, Status) -->
+        <div class="topbar-right">
+          <!-- Top Navigation Menu Links -->
+          <nav>
+            <ul class="top-nav-links">
+              <li><a href="/monitor" class="top-nav-item {% if request.path == '/monitor' %}active{% endif %}">Live Sniffer</a></li>
+              <li><a href="/alerts" class="top-nav-item {% if request.path == '/alerts' %}active{% endif %}">Threats</a></li>
+              <li><a href="/analysis" class="top-nav-item {% if request.path == '/analysis' or request.path == '/flows' %}active{% endif %}">Analysis</a></li>
+              <li><a href="/firewall" class="top-nav-item {% if request.path == '/firewall' %}active{% endif %}">Firewall</a></li>
+              <li><a href="/reports" class="top-nav-item {% if request.path == '/reports' %}active{% endif %}">Audits</a></li>
+              <li><a href="/settings" class="top-nav-item {% if request.path == '/settings' %}active{% endif %}">Settings</a></li>
+            </ul>
+          </nav>
+
+          <!-- Quick Copilot Pill Button -->
+          <button class="btn-quick-copilot" onclick="toggleFloatingAi()" title="Open A2IDS AI Copilot">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a8 8 0 0 0-8 8c0 3.3 2 6.2 5 7.4V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.6c3-1.2 5-4.1 5-7.4a8 8 0 0 0-8-8z"/></svg>
+            Quick Copilot
+          </button>
+
+          <!-- Ops Time Clock Pill -->
+          <div class="ops-time-pill">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span id="ops-clock">10:05:02 AM</span>
+          </div>
+
+          <!-- Live Active Status Pill -->
+          <div class="live-active-pill" id="global-live-pill">
+            <span class="pulse-green-dot"></span>
+            <span id="global-live-text">LIVE ACTIVE</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Page Content -->
+      <main class="sentinel-container">
+        {% block content %}{% endblock %}
+
+      </main>
+
+    </div>
+  </div>
+
+  <!-- Notification Container -->
+  <div id="notification-container"></div>
+
+  <!-- Floating AI Copilot Launcher Button -->
+  <button class="floating-ai-launcher" id="floating-ai-btn" onclick="toggleFloatingAi()" title="Open AI Security Copilot">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M12 2a8 8 0 0 0-8 8c0 3.3 2 6.2 5 7.4V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.6c3-1.2 5-4.1 5-7.4a8 8 0 0 0-8-8z"/>
+      <line x1="9" y1="9" x2="9.01" y2="9"/>
+      <line x1="15" y1="9" x2="15.01" y2="9"/>
+    </svg>
+  </button>
+
+  <!-- Floating AI Copilot Modal -->
+  <div class="floating-ai-panel" id="floating-ai-panel">
+    <div class="floating-ai-header">
+      <div class="floating-ai-title">
+        <span class="pulse-green-dot"></span>
+        A2IDS NEURAL COPILOT
+      </div>
+      <button class="floating-ai-close" onclick="toggleFloatingAi()">&times;</button>
+    </div>
+
+    <div class="floating-ai-messages" id="floating-ai-messages">
+      <div class="chat-bubble chat-ai">
+        <strong style="color:var(--cyan-accent);">A2IDS Neural Copilot Online.</strong><br>
+        Direct telemetry link to packet sniffer, flow engine, and macOS Packet Filter active.
+        Ask about live threats, packet forensics, or defense commands.
+      </div>
+    </div>
+
+    <div class="floating-ai-quickchips">
+      <button class="floating-chip" onclick="sendFloatingPrompt('What is the current network status?')">Network Status</button>
+      <button class="floating-chip" onclick="sendFloatingPrompt('Show active firewall blocked IPs')">Firewall Blocks</button>
+      <button class="floating-chip" onclick="sendFloatingPrompt('Explain latest threat incidents')">Latest Threats</button>
+      <button class="floating-chip" onclick="sendFloatingPrompt('Explain SYN Flood detection logic')">SYN Flood</button>
+    </div>
+
+    <div class="floating-ai-input">
+      <input type="text" id="floating-ai-input" class="sentinel-input" style="flex:1;" placeholder="Ask A2IDS Copilot..." onkeydown="if(event.key === 'Enter') sendFloatingAiMessage()">
+      <button class="btn-sentinel btn-sentinel-blue btn-sm" onclick="sendFloatingAiMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    // Live Clock Ticker
+    function updateClock() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour12: true });
+      const el = document.getElementById('ops-clock');
+      if (el) el.textContent = timeStr;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    function showNotification(message, type = 'info') {
+      const container = document.getElementById('notification-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type === 'error' ? 'toast-error' : ''}`;
+      toast.innerHTML = `<span style="color:${type === 'error' ? 'var(--magenta-rose)' : 'var(--green-emerald)'}; font-weight:800;">[A2IDS]</span> ${message}`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 250);
+      }, 4000);
+    }
+
+    // Toggle Floating Copilot
+    function toggleFloatingAi() {
+      const panel = document.getElementById('floating-ai-panel');
+      panel.classList.toggle('active');
+      if (panel.classList.contains('active')) {
+        document.getElementById('floating-ai-input').focus();
+      }
+    }
+
+    function sendFloatingPrompt(text) {
+      document.getElementById('floating-ai-input').value = text;
+      sendFloatingAiMessage();
+    }
+
+    async function sendFloatingAiMessage() {
+      const input = document.getElementById('floating-ai-input');
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      const box = document.getElementById('floating-ai-messages');
+
+      // User Bubble
+      const userBubble = document.createElement('div');
+      userBubble.className = 'chat-bubble chat-user';
+      userBubble.textContent = msg;
+      box.appendChild(userBubble);
+      input.value = '';
+      box.scrollTop = box.scrollHeight;
+
+      // AI Loading Bubble
+      const aiBubble = document.createElement('div');
+      aiBubble.className = 'chat-bubble chat-ai';
+      aiBubble.innerHTML = '<span style="color:var(--cyan-accent);">[AI_ANALYSIS_IN_PROGRESS...]</span>';
+      box.appendChild(aiBubble);
+      box.scrollTop = box.scrollHeight;
+
+      try {
+        const res = await fetch('/api/assistant/chat', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({message: msg})
+        });
+        const data = await res.json();
+        let formatted = (data.response || 'No response returned.')
+          .replace(/```([\s\S]*?)```/g, '<pre style="background:#080d1c; padding:8px; border-radius:4px; margin:4px 0; border:1px solid rgba(255,255,255,0.06);"><code>$1</code></pre>')
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+          .replace(/\n/g, '<br>');
+
+        let actionHtml = '';
+        if (data.action && (data.action.type === 'OFFER_BLOCK' || data.action.type === 'RECOMMEND_BLOCK')) {
+          actionHtml = `
+            <div style="margin-top: 8px; padding: 8px; background: rgba(244,63,94,0.15); border: 1px solid var(--magenta-rose); border-radius: 6px;">
+              <strong style="color:var(--magenta-rose); font-size:0.75rem;">Action Recommended:</strong>
+              <div style="font-size:0.75rem; margin:2px 0 6px 0;">Block Target: ${data.action.target_ip}</div>
+              <button class="btn-sentinel btn-sentinel-danger btn-sm" onclick="executeFloatingBlock('${data.action.target_ip}', '${data.action.reason}')">Enforce Block</button>
+            </div>
+          `;
+        }
+
+        aiBubble.innerHTML = formatted + actionHtml;
+      } catch (e) {
+        aiBubble.innerHTML = `<span style="color:var(--magenta-rose)">Error: ${e.message}</span>`;
+      }
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function executeFloatingBlock(ip, reason) {
+      if (!confirm(`Confirm OS kernel firewall block on ${ip}?`)) return;
+      const res = await fetch('/api/firewall/block', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ip: ip, reason: reason, duration_sec: 300})
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotification(`Firewall blocked ${ip}`, 'info');
+      } else {
+        showNotification(`Failed: ${data.message}`, 'error');
+      }
+    }
+  </script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
