@@ -87,8 +87,8 @@ The system follows a layered, event-driven pipeline:
 
 ### Step 1: Clone the repository
 ```bash
-git clone https://github.com/yashjadhav1812/AI-Intrusion-Detection-System.git
-cd "AI Intrusion Detection System"
+git clone https://github.com/yashjadhav1812/A2IDS-Intrusion-Detection-System.git
+cd "A2IDS Intrusion Detection System"
 ```
 
 ### Step 2: Install dependencies
@@ -114,14 +114,37 @@ python3 train_model.py
 ```
 Generates a fresh 4,000-sample benchmark dataset, trains the classifier, and saves artifacts to `model/`.
 
-### Step 5: Run the application
-> ⚠️ **Root/admin privileges are required** for live packet capture and firewall rule enforcement.
+### Step 5: Start the packet sniffer
+> ⚠️ **Root/admin privileges are required** for raw socket access and live packet capture.
 
+The sniffer must be running **before** or **alongside** the main app for live traffic monitoring to work. Open a separate terminal window and run:
+
+**macOS / Linux:**
+```bash
+sudo python3 sniffer.py
+```
+
+**Windows** (run as Administrator in an elevated Command Prompt or PowerShell):
+```powershell
+python sniffer.py
+```
+> 💡 On Windows, [Npcap](https://npcap.com/) must be installed for Scapy to capture packets. Download and install it before running the sniffer.
+
+### Step 6: Run the application
+Open another terminal window and run:
+
+**macOS / Linux:**
 ```bash
 sudo python3 app.py
 ```
 
-### Step 6: Open in browser
+**Windows** (run as Administrator):
+```powershell
+python app.py
+```
+> ⚠️ Admin privileges are also needed by `app.py` for OS-level firewall rule enforcement (PF on macOS, nftables on Linux, Windows Defender Firewall on Windows).
+
+### Step 7: Open in browser
 ```
 http://127.0.0.1:5000/
 ```
@@ -256,9 +279,3 @@ All system parameters are controlled via [`config.ini`](config.ini):
 | `psutil` | ≥ 5.9.0 | Network interface discovery & system stats |
 | `requests` | ≥ 2.31.0 | Gemini API HTTP client |
 | `cryptography` | ≥ 42.0.0 | Secure key handling |
-
----
-
-## 📄 License
-
-This project is developed for research & Development purposes.
