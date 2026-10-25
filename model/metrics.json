@@ -1,0 +1,90 @@
+{
+  "evaluation_timestamp": 1792895299.9369228,
+  "evaluation_date": "2026-10-25 07:58:19",
+  "total_test_samples": 800,
+  "overall_precision": 1.0,
+  "overall_recall": 1.0,
+  "overall_f1_score": 1.0,
+  "false_positive_rate": 0.0,
+  "false_negative_rate": 0.0,
+  "average_inference_latency_ms": 18.093,
+  "per_class_metrics": {
+    "BENIGN": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 480
+    },
+    "SYN_FLOOD": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 120
+    },
+    "PORT_SCAN": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 120
+    },
+    "GENERIC_MALICIOUS": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 80
+    }
+  },
+  "confusion_matrix": {
+    "classes": [
+      "BENIGN",
+      "SYN_FLOOD",
+      "PORT_SCAN",
+      "GENERIC_MALICIOUS"
+    ],
+    "matrix": [
+      [
+        480,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        120,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        120,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        80
+      ]
+    ]
+  },
+  "feature_importances": {
+    "pkt_len_mean": 0.1332,
+    "total_bwd_bytes": 0.1295,
+    "pkt_len_max": 0.1278,
+    "syn_flag_count": 0.1007,
+    "total_fwd_bytes": 0.0985,
+    "total_fwd_pkts": 0.0977,
+    "psh_flag_count": 0.0786,
+    "pkt_len_std": 0.0756,
+    "ack_flag_count": 0.0577,
+    "flow_duration": 0.0356,
+    "pkt_len_min": 0.0335,
+    "total_bwd_pkts": 0.0152,
+    "flow_bytes_per_sec": 0.0086,
+    "fin_flag_count": 0.005,
+    "flow_iat_mean": 0.0028,
+    "flow_pkts_per_sec": 0.0,
+    "rst_flag_count": 0.0
+  }
+}

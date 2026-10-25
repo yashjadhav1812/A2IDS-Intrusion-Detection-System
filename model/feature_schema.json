@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "feature_count": 17,
+  "feature_names": [
+    "flow_duration",
+    "total_fwd_pkts",
+    "total_bwd_pkts",
+    "total_fwd_bytes",
+    "total_bwd_bytes",
+    "pkt_len_mean",
+    "pkt_len_std",
+    "pkt_len_max",
+    "pkt_len_min",
+    "flow_pkts_per_sec",
+    "flow_bytes_per_sec",
+    "syn_flag_count",
+    "ack_flag_count",
+    "fin_flag_count",
+    "rst_flag_count",
+    "psh_flag_count",
+    "flow_iat_mean"
+  ],
+  "target_classes": [
+    "BENIGN",
+    "SYN_FLOOD",
+    "PORT_SCAN",
+    "GENERIC_MALICIOUS"
+  ],
+  "scaler": "RobustScaler",
+  "classifier": "RandomForestClassifier",
+  "anomaly_detector": "IsolationForest"
+}
