@@ -261,8 +261,4 @@ All system parameters are controlled via [`config.ini`](config.ini):
 
 ## 📄 License
 
-This project is developed for academic and research purposes.
-
----
-
-*Built with Python, Flask, Scapy, scikit-learn & Google Gemini.*
+This project is developed for research & Development purposes.
